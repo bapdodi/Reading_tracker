@@ -1,10 +1,11 @@
 package com.readingtracker.server.service.validation;
 
-import com.readingtracker.dbms.dto.serverdbmsDTO.commandDTO.UserCreationCommand;
+import org.springframework.stereotype.Service;
+
+import com.readingtracker.dbms.dto.serverdbmsDTO.commandDTO.AccountVerificationCommand;
 import com.readingtracker.dbms.dto.serverdbmsDTO.commandDTO.LoginIdRetrievalCommandDTO;
 import com.readingtracker.dbms.dto.serverdbmsDTO.commandDTO.PasswordResetCommand;
-import com.readingtracker.dbms.dto.serverdbmsDTO.commandDTO.AccountVerificationCommand;
-import org.springframework.stereotype.Service;
+import com.readingtracker.dbms.dto.serverdbmsDTO.commandDTO.UserCreationCommand;
 
 /**
  * 사용자 관련 검증 서비스

@@ -5,7 +5,7 @@ package com.readingtracker.server.common.constant;
  */
 public enum BookCategory {
     ToRead("읽고 싶은 책"),
-    Reading("읽고 있는 책"),
+    Reading("읽는 중인 책"),
     AlmostFinished("거의 다 읽은 책"),
     Finished("완독한 책");
     

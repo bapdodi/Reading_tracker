@@ -1,10 +1,11 @@
 package com.readingtracker.server.service.validation;
 
-import com.readingtracker.server.common.constant.BookCategory;
 import com.readingtracker.dbms.dto.serverdbmsDTO.commandDTO.AddBookCommand;
 import com.readingtracker.dbms.dto.serverdbmsDTO.commandDTO.BookDeletionCommand;
 import com.readingtracker.dbms.dto.serverdbmsDTO.commandDTO.BookSearchCommand;
 import com.readingtracker.dbms.dto.serverdbmsDTO.commandDTO.CategoryUpdateCommand;
+import com.readingtracker.server.common.constant.BookCategory;
+
 import org.springframework.stereotype.Service;
 
 /**

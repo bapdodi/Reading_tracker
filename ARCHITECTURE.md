@@ -12,22 +12,25 @@
 - **기본 패키지**: `com.readingtracker`
 - **소문자 사용**: 모든 패키지명은 소문자로 구성
 - **한 단어 사용**: 패키지명은 한 단어로만 구성되어야 함
+- **DTO 패키지 예외**: DTO 관련 패키지만 가시성을 위해 'DTO' 글자만 대문자 사용 허용
+  - 나머지 부분은 소문자로 작성
+  - 예: `clientserverDTO`, `serverdbmsDTO`, `requestDTO`, `responseDTO`, `commandDTO`, `resultDTO`
 - **3-tier Architecture**: 계층이 아닌 경계 중심으로 패키지 분리
 
 ### 3-tier Architecture 구조
 
 #### Client ↔ Server 경계
 - `server.controller` - REST API 컨트롤러 (클라이언트와의 통신 담당)
-- `server.dto.ClientServerDTO` - 클라이언트-서버 간 데이터 전송 객체
-  - `requestdto` - 클라이언트 → 서버 요청 DTO
-  - `responsedto` - 서버 → 클라이언트 응답 DTO
+- `server.dto.clientserverDTO` - 클라이언트-서버 간 데이터 전송 객체
+  - `requestDTO` - 클라이언트 → 서버 요청 DTO
+  - `responseDTO` - 서버 → 클라이언트 응답 DTO
   - `ApiResponse.java`, `ErrorResponse.java` - 공통 응답 래퍼 (dto 바로 아래)
 
 #### Server ↔ DBMS 경계
 - `dbms.repository` - 데이터 접근 계층 (DBMS와의 통신 담당)
-- `dbms.dto.ServerDbmsDTO` - 서버-DBMS 간 데이터 전송 객체
-  - `commanddto` - 서비스 → DBMS 명령 DTO
-  - `resultdto` - DBMS → 서비스 결과 DTO
+- `dbms.dto.serverdbmsDTO` - 서버-DBMS 간 데이터 전송 객체
+  - `commandDTO` - 서비스 → DBMS 명령 DTO
+  - `resultDTO` - DBMS → 서비스 결과 DTO
 - `dbms.entity` - JPA 엔티티 (데이터베이스 테이블 매핑)
 
 #### 서버 내부
@@ -80,11 +83,11 @@ com.readingtracker
 │   │   ├── BookService.java
 │   │   └── ...
 │   └── dto                           # Client ↔ Server 경계
-│       ├── ClientServerDTO           # 클라이언트-서버 DTO
-│       │   ├── requestdto           # 클라이언트 → 서버 요청
+│       ├── clientserverDTO           # 클라이언트-서버 DTO
+│       │   ├── requestDTO           # 클라이언트 → 서버 요청
 │       │   │   ├── LoginRequest.java
 │       │   │   └── ...
-│       │   └── responsedto          # 서버 → 클라이언트 응답
+│       │   └── responseDTO          # 서버 → 클라이언트 응답
 │       │       ├── LoginResponse.java
 │       │       └── ...
 │       ├── ApiResponse.java          # 공통 응답 래퍼
@@ -100,10 +103,10 @@ com.readingtracker
     │   ├── Book.java
     │   └── ...
     └── dto                           # Server ↔ DBMS 경계
-        └── ServerDbmsDTO            # 서버-DBMS DTO
-            ├── commanddto            # 서비스 → DBMS 명령
+        └── serverdbmsDTO            # 서버-DBMS DTO
+            ├── commandDTO            # 서비스 → DBMS 명령
             │   └── ...
-            └── resultdto            # DBMS → 서비스 결과
+            └── resultDTO            # DBMS → 서비스 결과
                 └── ...
 
 src/main/resources/                   # 리소스 파일 (위치 변경 없음)
@@ -159,24 +162,46 @@ src/main/resources/                   # 리소스 파일 (위치 변경 없음)
 
 - **`show...`**: 무언가를 보여주는 함수
   - 예: `showMessage()`, `showDialog()`, `showUserInfo()`
-- **`get...`**: 값을 반환하는 함수
-  - 예: `getAge()`, `getUserById()`, `getTotalPrice()`
+- **`get...`**: 구조화된 객체의 속성을 직접 반환하는 함수 (단순 접근)
+  - 예: `getAge()`, `getUserById()`, `getTotalPrice()`, `getDescription()`
+  - 객체의 속성이나 필드에 직접 접근하여 값을 반환할 때 사용
+  - 복잡한 변환 과정 없이 저장된 값을 그대로 반환
+- **`extract...`**: 암호화/인코딩된 데이터나 구조화된 데이터에서 특정 정보를 추출하는 함수 (복잡한 변환 과정)
+  - 예: `extractLoginId()`, `extractUserId()`, `extractClaim()`, `extractExpiration()`
+  - 데이터 파싱, 디코딩, 검증 등의 복잡한 과정을 거쳐 정보를 추출할 때 사용
+  - JWT 토큰, JSON, XML 등 구조화된 데이터에서 특정 값을 추출할 때 사용
+  - 업계에서도 구조화된 데이터에서 정보를 추출할 때 널리 사용되는 관례
 - **`calc...`**: 값을 계산하는 함수
   - 예: `calcSum()`, `calcTotalPrice()`, `calcAverage()`
-- **`create...`**: 무언가를 생성하는 함수
+- **`create...`**: 단순 객체 생성 함수 (무에서 유를 창조)
   - 예: `createForm()`, `createUser()`, `createToken()`
+  - 단순한 객체 인스턴스 생성 시 사용
+- **`generate...`**: 여러 정보를 조합·변환하여 새로운 값을 생성하는 함수 (단계에 따라 발생하는 과정)
+  - 예: `generateAccessToken()`, `generateRefreshToken()`, `generateReport()`
+  - 복잡한 변환 과정(암호화, 서명, 계산 등)을 거쳐 값을 생성할 때 사용
+  - 여러 입력값을 조합하여 새로운 결과를 만들어낼 때 사용
 - **`update...`**: 무언가를 업데이트하는 함수
   - 예: `updateUser()`, `updateStatus()`, `updatePrice()`
 - **`delete...`**: 무언가를 삭제하는 함수
   - 예: `deleteUser()`, `deleteItem()`, `deleteToken()`
 - **`validate...`**: 무언가를 검증하는 함수
   - 예: `validateEmail()`, `validatePassword()`, `validateInput()`
-- **`check...`**: 무언가를 확인하는 함수
+- **`check...`**: 무언가를 확인하는 동작을 수행하는 함수 (동작 강조)
   - 예: `checkPermission()`, `checkExists()`, `checkStatus()`
+  - 확인/검증 동작을 수행하고 결과를 반환할 때 사용
+  - 동작 자체를 강조하는 경우에 사용
+- **`is...`**: 객체나 값의 상태/속성에 대한 boolean 질문 형태의 함수 (질문 형태)
+  - 예: `isTokenExpired()`, `isRefreshToken()`, `isValid()`, `isEmpty()`, `isEnabled()`
+  - "~인가?" 질문 형태로 상태나 속성을 묻는 boolean 반환 함수
+  - Java Bean 명명 관례에 따라 boolean getter는 `is...` 사용
+  - Java 표준 라이브러리에서도 널리 사용되는 관례 (예: `String.isEmpty()`, `Optional.isPresent()`)
+  - 상태/속성에 대한 질문일 때 `is...`, 확인 동작을 강조할 때 `check...` 사용
 - **`find...`**: 무언가를 찾는 함수
   - 예: `findUser()`, `findById()`, `findAll()`
 - **`save...`**: 무언가를 저장하는 함수
   - 예: `saveUser()`, `saveData()`, `saveChanges()`
+- **`handle...`**: 예외를 처리하는 함수 (예외 처리 전용)
+  - 예: `handleValidationException()`, `handleIllegalArgumentException()`, `handleRuntimeException()`
 
 이러한 접두사를 사용하면 코드의 가독성이 향상되고, 함수의 역할을 쉽게 파악할 수 있습니다.
 
@@ -309,18 +334,18 @@ books (1) ← (N) user_books
 
 #### 1. ClientServerDTO (Client ↔ Server 경계)
 - **용도**: 클라이언트와 서버 간 통신
-- **위치**: `server.dto.ClientServerDTO`
+- **위치**: `server.dto.clientserverDTO`
 - **구조**:
-  - `requestdto`: 클라이언트 → 서버 요청 DTO
-  - `responsedto`: 서버 → 클라이언트 응답 DTO
+  - `requestDTO`: 클라이언트 → 서버 요청 DTO
+  - `responseDTO`: 서버 → 클라이언트 응답 DTO
   - `ApiResponse.java`, `ErrorResponse.java`: 공통 응답 래퍼 (dto 바로 아래)
 
 #### 2. ServerDbmsDTO (Server ↔ DBMS 경계)
 - **용도**: 서버 내부 로직과 DBMS 간 통신
-- **위치**: `dbms.dto.ServerDbmsDTO`
+- **위치**: `dbms.dto.serverdbmsDTO`
 - **구조**:
-  - `commanddto`: 서비스 → DBMS 명령 DTO
-  - `resultdto`: DBMS → 서비스 결과 DTO
+  - `commandDTO`: 서비스 → DBMS 명령 DTO
+  - `resultDTO`: DBMS → 서비스 결과 DTO
 
 ### API 응답 구조
 
@@ -399,8 +424,8 @@ books (1) ← (N) user_books
 - **이유**: 구현 단순성, 기능적 유연성
 
 ### 4. DTO 경계 분리 (3-tier Architecture)
-- **ClientServerDTO** (`server.dto.ClientServerDTO`): Client ↔ Server 경계용
-- **ServerDbmsDTO** (`dbms.dto.ServerDbmsDTO`): Server ↔ DBMS 경계용
+- **ClientServerDTO** (`server.dto.clientserverDTO`): Client ↔ Server 경계용
+- **ServerDbmsDTO** (`dbms.dto.serverdbmsDTO`): Server ↔ DBMS 경계용
 - **이유**: 경계 간 의존성 분리, 명확한 책임 구분, 유지보수성 향상
 
 ### 5. 패키지 구조 (3-tier Architecture)
@@ -422,13 +447,13 @@ books (1) ← (N) user_books
 ### 컨트롤러 (Client ↔ Server 경계)
 - 모든 컨트롤러는 `BaseV1Controller` 상속
 - 클라이언트 요청을 받아 `server.service`에 위임
-- `server.dto.ClientServerDTO` 사용 (Request/Response)
+- `server.dto.clientserverDTO` 사용 (Request/Response)
 - Swagger 문서화 (`@Tag` 사용)
 - `ApiResponse<T>` 래퍼 사용
 
 ### 서비스 (서버 내부)
 - 비즈니스 로직 구현
-- ClientServerDTO ↔ ServerDbmsDTO 변환 담당
+- `server.dto.clientserverDTO` ↔ `dbms.dto.serverdbmsDTO` 변환 담당
 - 검증 서비스(`server.service.validation` 패키지) 활용
 - `server.controller`에서 호출되며, `dbms.repository`를 통해 데이터 접근
 
@@ -444,7 +469,7 @@ books (1) ← (N) user_books
 2. **Git 커밋**: 중요한 변경사항은 커밋 메시지에 명시
 3. **마이그레이션**: 기존 마이그레이션 파일은 수정하지 않음
 4. **DTO 분리**: 경계별 DTO 혼용 금지 (ClientServerDTO와 ServerDbmsDTO 혼용 금지)
-5. **패키지 명명**: 모든 패키지명은 소문자 한 단어로만 구성
+5. **패키지 명명**: 모든 패키지명은 소문자 한 단어로만 구성 (단, DTO 패키지는 가시성을 위해 'DTO' 글자만 대문자 허용, 예: `clientserverDTO`, `requestDTO`, `commandDTO`)
 
 ## 참고 자료
 
