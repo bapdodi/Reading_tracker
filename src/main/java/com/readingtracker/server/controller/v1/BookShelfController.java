@@ -218,12 +218,8 @@ public class BookShelfController extends BaseV1Controller {
             throw new IllegalArgumentException("권한이 없습니다.");
         }
         
-        // RequestDTO의 필드를 Entity에 설정
-        userBook.setReadingStartDate(request.getReadingStartDate());
-        userBook.setReadingProgress(request.getReadingProgress());
-        if (request.getPurchaseType() != null) {
-            userBook.setPurchaseType(request.getPurchaseType());
-        }
+        // DTO → Entity 업데이트 (Mapper 사용)
+        bookMapper.updateUserShelfBookFromStartReadingRequest(userBook, request);
         
         // Service 호출 (Entity만 전달)
         bookService.startReading(userBook);
@@ -261,12 +257,8 @@ public class BookShelfController extends BaseV1Controller {
             throw new IllegalArgumentException("권한이 없습니다.");
         }
         
-        // RequestDTO의 필드를 Entity에 설정
-        userBook.setReadingFinishedDate(request.getReadingFinishedDate());
-        userBook.setRating(request.getRating());
-        if (request.getReview() != null) {
-            userBook.setReview(request.getReview());
-        }
+        // DTO → Entity 업데이트 (Mapper 사용)
+        bookMapper.updateUserShelfBookFromFinishReadingRequest(userBook, request);
         
         // Service 호출 (Entity만 전달)
         bookService.finishReading(userBook);
@@ -306,32 +298,8 @@ public class BookShelfController extends BaseV1Controller {
             throw new IllegalArgumentException("권한이 없습니다.");
         }
         
-        // RequestDTO의 필드를 Entity에 설정 (null이 아닌 값만 업데이트)
-        if (request.getCategory() != null) {
-            userBook.setCategory(request.getCategory());
-            userBook.setCategoryManuallySet(true);
-        }
-        if (request.getExpectation() != null) {
-            userBook.setExpectation(request.getExpectation());
-        }
-        if (request.getReadingStartDate() != null) {
-            userBook.setReadingStartDate(request.getReadingStartDate());
-        }
-        if (request.getReadingProgress() != null) {
-            userBook.setReadingProgress(request.getReadingProgress());
-        }
-        if (request.getPurchaseType() != null) {
-            userBook.setPurchaseType(request.getPurchaseType());
-        }
-        if (request.getReadingFinishedDate() != null) {
-            userBook.setReadingFinishedDate(request.getReadingFinishedDate());
-        }
-        if (request.getRating() != null) {
-            userBook.setRating(request.getRating());
-        }
-        if (request.getReview() != null) {
-            userBook.setReview(request.getReview());
-        }
+        // DTO → Entity 업데이트 (Mapper 사용, null이 아닌 값만 업데이트)
+        bookMapper.updateUserShelfBookFromBookDetailUpdateRequest(userBook, request);
         
         // Service 호출 (Entity만 전달)
         bookService.updateBookDetail(userBook);

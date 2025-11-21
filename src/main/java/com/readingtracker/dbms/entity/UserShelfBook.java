@@ -40,10 +40,6 @@ public class UserShelfBook {
     @Column(name = "expectation", length = 500)
     private String expectation;
     
-    // 메모 (Memo table과 구분)
-    @Column(name = "memo", columnDefinition = "TEXT")
-    private String memo;
-    
     // 읽는 중인 책 / 거의 다 읽은 책 / 완독한 책: 독서 시작일
     @Column(name = "reading_start_date")
     private LocalDate readingStartDate;
@@ -93,7 +89,6 @@ public class UserShelfBook {
     public BookCategory getCategory() { return category; }
     public Boolean isCategoryManuallySet() { return categoryManuallySet; }
     public String getExpectation() { return expectation; }
-    public String getMemo() { return memo; }
     public LocalDate getReadingStartDate() { return readingStartDate; }
     public Integer getReadingProgress() { return readingProgress; }
     public PurchaseType getPurchaseType() { return purchaseType; }
@@ -115,7 +110,6 @@ public class UserShelfBook {
     public void setCategory(BookCategory category) { this.category = category; }
     public void setCategoryManuallySet(Boolean categoryManuallySet) { this.categoryManuallySet = categoryManuallySet; }
     public void setExpectation(String expectation) { this.expectation = expectation; }
-    public void setMemo(String memo) { this.memo = memo; }
     public void setReadingStartDate(LocalDate readingStartDate) { this.readingStartDate = readingStartDate; }
     public void setReadingProgress(Integer readingProgress) { this.readingProgress = readingProgress; }
     public void setPurchaseType(PurchaseType purchaseType) { this.purchaseType = purchaseType; }

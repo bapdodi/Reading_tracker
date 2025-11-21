@@ -1,10 +1,16 @@
 package com.readingtracker.server.mapper;
 
+import com.readingtracker.dbms.entity.AladinBook;
 import com.readingtracker.dbms.entity.Book;
 import com.readingtracker.dbms.entity.User;
 import com.readingtracker.dbms.entity.UserShelfBook;
+import com.readingtracker.server.common.constant.BookSearchFilter;
 import com.readingtracker.server.dto.requestDTO.BookAdditionRequest;
+import com.readingtracker.server.dto.requestDTO.BookDetailUpdateRequest;
+import com.readingtracker.server.dto.requestDTO.FinishReadingRequest;
+import com.readingtracker.server.dto.requestDTO.StartReadingRequest;
 import com.readingtracker.server.dto.responseDTO.BookAdditionResponse;
+import com.readingtracker.server.dto.responseDTO.BookSearchResponse;
 import com.readingtracker.server.dto.responseDTO.MyShelfResponse;
 
 
@@ -38,7 +44,6 @@ public interface BookMapper {
     @Mapping(target = "category", source = "request.category")
     @Mapping(target = "categoryManuallySet", constant = "true")
     @Mapping(target = "expectation", source = "request.expectation")
-    @Mapping(target = "memo", ignore = true)
     @Mapping(target = "readingStartDate", source = "request.readingStartDate")
     @Mapping(target = "readingProgress", source = "request.readingProgress")
     @Mapping(target = "purchaseType", source = "request.purchaseType")
@@ -91,6 +96,125 @@ public interface BookMapper {
             .toList();
         
         return new MyShelfResponse(shelfBooks, shelfBooks.size());
+    }
+    
+    /**
+     * AladinBook → BookSearchResponse.BookInfo 변환
+     */
+    @Mapping(target = "isbn", source = "isbn")
+    @Mapping(target = "isbn13", source = "isbn13")
+    @Mapping(target = "title", source = "title")
+    @Mapping(target = "author", source = "author")
+    @Mapping(target = "publisher", source = "publisher")
+    @Mapping(target = "description", source = "description")
+    @Mapping(target = "coverUrl", source = "coverUrl")
+    @Mapping(target = "totalPages", source = "totalPages")
+    @Mapping(target = "mainGenre", source = "mainGenre")
+    @Mapping(target = "pubDate", source = "publishedAt")  // publishedAt → pubDate
+    @Mapping(target = "priceSales", source = "priceSales")
+    @Mapping(target = "priceStandard", source = "priceStandard")
+    BookSearchResponse.BookInfo toBookSearchBookInfo(AladinBook aladinBook);
+    
+    /**
+     * List<AladinBook> → BookSearchResponse 변환
+     */
+    default BookSearchResponse toBookSearchResponse(List<AladinBook> books, String query, BookSearchFilter searchFilter) {
+        if (books == null) {
+            return new BookSearchResponse(List.of(), 0, 1, 10, query, searchFilter);
+        }
+        
+        List<BookSearchResponse.BookInfo> bookInfos = books.stream()
+            .map(this::toBookSearchBookInfo)
+            .toList();
+        
+        return new BookSearchResponse(bookInfos, bookInfos.size(), 1, bookInfos.size(), query, searchFilter);
+    }
+    
+    /**
+     * StartReadingRequest → UserShelfBook Entity 업데이트
+     * 기존 Entity에 DTO의 필드값을 설정합니다.
+     */
+    default void updateUserShelfBookFromStartReadingRequest(UserShelfBook userBook, StartReadingRequest request) {
+        if (request == null) {
+            return;
+        }
+        
+        if (request.getReadingStartDate() != null) {
+            userBook.setReadingStartDate(request.getReadingStartDate());
+        }
+        
+        if (request.getReadingProgress() != null) {
+            userBook.setReadingProgress(request.getReadingProgress());
+        }
+        
+        if (request.getPurchaseType() != null) {
+            userBook.setPurchaseType(request.getPurchaseType());
+        }
+    }
+    
+    /**
+     * FinishReadingRequest → UserShelfBook Entity 업데이트
+     * 기존 Entity에 DTO의 필드값을 설정합니다.
+     */
+    default void updateUserShelfBookFromFinishReadingRequest(UserShelfBook userBook, FinishReadingRequest request) {
+        if (request == null) {
+            return;
+        }
+        
+        if (request.getReadingFinishedDate() != null) {
+            userBook.setReadingFinishedDate(request.getReadingFinishedDate());
+        }
+        
+        if (request.getRating() != null) {
+            userBook.setRating(request.getRating());
+        }
+        
+        if (request.getReview() != null) {
+            userBook.setReview(request.getReview());
+        }
+    }
+    
+    /**
+     * BookDetailUpdateRequest → UserShelfBook Entity 업데이트
+     * 기존 Entity에 DTO의 필드값을 설정합니다. (null이 아닌 값만 업데이트)
+     */
+    default void updateUserShelfBookFromBookDetailUpdateRequest(UserShelfBook userBook, BookDetailUpdateRequest request) {
+        if (request == null) {
+            return;
+        }
+        
+        if (request.getCategory() != null) {
+            userBook.setCategory(request.getCategory());
+            userBook.setCategoryManuallySet(true);
+        }
+        
+        if (request.getExpectation() != null) {
+            userBook.setExpectation(request.getExpectation());
+        }
+        
+        if (request.getReadingStartDate() != null) {
+            userBook.setReadingStartDate(request.getReadingStartDate());
+        }
+        
+        if (request.getReadingProgress() != null) {
+            userBook.setReadingProgress(request.getReadingProgress());
+        }
+        
+        if (request.getPurchaseType() != null) {
+            userBook.setPurchaseType(request.getPurchaseType());
+        }
+        
+        if (request.getReadingFinishedDate() != null) {
+            userBook.setReadingFinishedDate(request.getReadingFinishedDate());
+        }
+        
+        if (request.getRating() != null) {
+            userBook.setRating(request.getRating());
+        }
+        
+        if (request.getReview() != null) {
+            userBook.setReview(request.getReview());
+        }
     }
 }
 

@@ -1,0 +1,514 @@
+package com.readingtracker.server.service;
+
+import com.readingtracker.dbms.entity.Memo;
+import com.readingtracker.dbms.entity.Tag;
+import com.readingtracker.dbms.entity.TagCategory;
+import com.readingtracker.dbms.entity.User;
+import com.readingtracker.dbms.entity.UserShelfBook;
+import com.readingtracker.dbms.repository.MemoRepository;
+import com.readingtracker.dbms.repository.UserShelfBookRepository;
+import com.readingtracker.server.common.constant.BookCategory;
+import com.readingtracker.server.dto.responseDTO.BookMemoGroup;
+import com.readingtracker.server.dto.responseDTO.MemoResponse;
+import com.readingtracker.server.dto.responseDTO.TagMemoGroup;
+import com.readingtracker.server.mapper.MemoMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+@Service
+@Transactional
+public class MemoService {
+    
+    @Autowired
+    private MemoRepository memoRepository;
+    
+    @Autowired
+    private MemoMapper memoMapper;
+    
+    @Autowired
+    private UserShelfBookRepository userShelfBookRepository;
+    
+    /**
+     * 메모 작성
+     * - 메모 내용 필수 검증
+     * - 태그 자동 생성 및 연결
+     * - 페이지당 메모 개수 제한 없음 (사용자가 자유롭게 기록 가능)
+     * - pageNumber: 메모 작성 시점의 SESSION 모드 기준 초기 위치를 저장 (정렬 방식 변경 시에도 변경하지 않음)
+     * 
+     * 참고: ARCHITECTURE 원칙에 따라 Entity만 사용합니다.
+     * RequestDTO → Entity 변환은 Mapper 계층에서 처리됩니다.
+     */
+    public Memo createMemo(User user, Memo memo) {
+        // 1. UserShelfBook 소유권 확인
+        UserShelfBook userShelfBook = memo.getUserShelfBook();
+        if (userShelfBook == null) {
+            throw new IllegalArgumentException("책을 찾을 수 없습니다.");
+        }
+        
+        if (!userShelfBook.getUserId().equals(user.getId())) {
+            throw new IllegalArgumentException("권한이 없습니다.");
+        }
+        
+        // 2. 태그 처리 확인
+        // 태그는 Mapper에서 이미 Tag 엔티티 리스트로 변환되어 Entity에 설정됨
+        // 추가 검증이 필요한 경우 여기서 수행
+        
+        // 3. Memo 엔티티 저장
+        memo.setUser(user);
+        return memoRepository.save(memo);
+    }
+    
+    /**
+     * 메모 수정
+     * 
+     * 참고: ARCHITECTURE 원칙에 따라 Entity만 사용합니다.
+     * RequestDTO → Entity 변환은 Mapper 계층에서 처리됩니다.
+     */
+    public Memo updateMemo(User user, Long memoId, Memo memo) {
+        // 1. 메모 조회 및 소유권 확인
+        Memo existingMemo = memoRepository.findById(memoId)
+            .orElseThrow(() -> new IllegalArgumentException("메모를 찾을 수 없습니다."));
+        
+        if (!existingMemo.getUser().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("권한이 없습니다.");
+        }
+        
+        // 2. 필드 업데이트 (content와 tags만 수정 가능)
+        // 참고: pageNumber는 메모 작성 시점의 시작 위치를 나타내는 메타데이터이므로 수정 불가
+        // Mapper에서 이미 변환된 Entity의 필드만 업데이트
+        // Mapper의 updateMemoFromRequest에서 이미 필드가 업데이트되었으므로 여기서는 저장만 수행
+        
+        return memoRepository.save(existingMemo);
+    }
+    
+    /**
+     * 메모 조회 (내부 사용)
+     */
+    @Transactional(readOnly = true)
+    public Memo getMemoById(User user, Long memoId) {
+        Memo memo = memoRepository.findById(memoId)
+            .orElseThrow(() -> new IllegalArgumentException("메모를 찾을 수 없습니다."));
+        
+        if (!memo.getUser().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("권한이 없습니다.");
+        }
+        
+        return memo;
+    }
+    
+    /**
+     * 메모 삭제
+     */
+    public void deleteMemo(User user, Long memoId) {
+        Memo memo = memoRepository.findById(memoId)
+            .orElseThrow(() -> new IllegalArgumentException("메모를 찾을 수 없습니다."));
+        
+        if (!memo.getUser().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("권한이 없습니다.");
+        }
+        
+        memoRepository.delete(memo);
+    }
+    
+    /**
+     * 날짜 범위 계산 헬퍼 메서드
+     * 
+     * LocalDate를 LocalDateTime 범위로 변환합니다.
+     * 향후 타임존 지원을 위해 구조화되어 있습니다.
+     * 
+     * 현재 구현: 서버 타임존 기준으로 처리
+     * 향후 확장: 사용자 타임존 정보를 받아 해당 타임존 기준으로 계산 가능
+     * 
+     * @param date 조회할 날짜
+     * @return 날짜 범위 (startOfDay, startOfNextDay)를 담은 배열
+     */
+    private LocalDateTime[] calculateDateRange(LocalDate date) {
+        // 현재: 서버 타임존 기준으로 처리
+        // 향후: 사용자 타임존을 받아 처리할 수 있도록 구조화
+        // 예: ZoneId userTimeZone = getUserTimeZone(user);
+        //     ZonedDateTime startOfDay = date.atStartOfDay(userTimeZone);
+        //     return new LocalDateTime[] { 
+        //         startOfDay.toLocalDateTime(), 
+        //         startOfDay.plusDays(1).toLocalDateTime() 
+        //     };
+        
+        LocalDateTime startOfDay = date.atStartOfDay();
+        LocalDateTime startOfNextDay = date.plusDays(1).atStartOfDay();
+        return new LocalDateTime[] { startOfDay, startOfNextDay };
+    }
+    
+    /**
+     * 오늘의 흐름 조회 (책별 그룹화)
+     * 
+     * 기능:
+     * - 오늘 날짜의 메모 조회 (기본값)
+     * - 과거 날짜의 메모 조회 가능 (독서 캘린더 연동)
+     * - 책별로 그룹화하여 반환
+     * - 각 책 그룹 내에서 타임라인 순으로 정렬 (memo_start_time 기준)
+     * 
+     * 백엔드 책임:
+     * - Repository: book_id를 기준으로 데이터를 조회
+     * - Service: 데이터를 책별로 그룹화하는 최종 변환 담당
+     * 
+     * 참고: 노션 문서 (https://www.notion.so/29c4a8c850098058892bc37ed7f6f68a)
+     */
+    @Transactional(readOnly = true)
+    public Map<Long, BookMemoGroup> getTodayFlowGroupedByBook(User user, LocalDate date) {
+        LocalDateTime[] dateRange = calculateDateRange(date);
+        List<Memo> memos = memoRepository.findByUserIdAndDateOrderByBookAndMemoStartTimeAsc(
+            user.getId(), dateRange[0], dateRange[1]
+        );
+        
+        // 책별로 그룹화
+        return memos.stream()
+            .collect(Collectors.groupingBy(
+                m -> m.getUserShelfBook().getId(),
+                Collectors.collectingAndThen(
+                    Collectors.toList(),
+                    memoList -> {
+                        BookMemoGroup group = new BookMemoGroup();
+                        Memo firstMemo = memoList.get(0);
+                        group.setBookId(firstMemo.getUserShelfBook().getId());
+                        group.setBookTitle(firstMemo.getUserShelfBook().getBook().getTitle());
+                        group.setBookIsbn(firstMemo.getUserShelfBook().getBook().getIsbn());
+                        group.setMemos(memoMapper.toMemoResponseList(memoList));
+                        group.setMemoCount(memoList.size());
+                        return group;
+                    }
+                )
+            ));
+    }
+    
+    /**
+     * 오늘의 흐름 조회 (태그별 그룹화)
+     * 
+     * 기능:
+     * - 태그별로 그룹화하여 반환 (1차 그룹화)
+     * - 각 태그 그룹 내부에서 책별로 다시 그룹화 (2차 그룹화)
+     * - 각 책 그룹 내에서 타임라인 순으로 정렬 (3차 정렬)
+     * 
+     * 대표 태그 결정 로직:
+     * - 대표 태그 결정 규칙은 섹션 12.2.2를 참조하세요.
+     * - tagCategory에 따라 대표 태그 결정 우선순위가 변경됩니다 (기본값: TYPE).
+     * 
+     * 백엔드 책임:
+     * - Repository: 날짜 기준으로 모든 메모를 조회
+     * - Service: 태그별로 그룹화한 후, 각 태그 그룹 내부에서 책별로 다시 그룹화하는 최종 변환 담당
+     * 
+     * @param tagCategory 태그 대분류 (TYPE 또는 TOPIC). 선택된 대분류가 대표 태그 결정 시 1순위가 됨 (기본값: TYPE)
+     * @return 태그별로 그룹화된 메모 (태그 그룹 -> 책 그룹 -> 메모 구조)
+     */
+    @Transactional(readOnly = true)
+    public Map<String, TagMemoGroup> getTodayFlowGroupedByTag(User user, LocalDate date, TagCategory tagCategory) {
+        // 날짜 기준으로 모든 메모를 시간순으로 조회
+        LocalDateTime[] dateRange = calculateDateRange(date);
+        List<Memo> memos = memoRepository.findByUserIdAndDateOrderByMemoStartTimeAsc(
+            user.getId(), dateRange[0], dateRange[1]
+        );
+        
+        // 대표 태그 결정 헬퍼 메서드
+        // tagCategory에 따라 우선순위가 변경됨:
+        // - tagCategory가 선택되면 해당 대분류가 1순위
+        // - 선택된 대분류 내에서는 sort_order가 가장 작은 태그를 대표 태그로 사용
+        Function<Memo, Tag> getRepresentativeTag = (memo) -> {
+            if (memo.getTags().isEmpty()) {
+                return null;  // 태그가 없으면 null 반환 (나중에 "etc" 처리)
+            }
+            
+            // 선택된 대분류의 태그들을 먼저 찾기
+            List<Tag> categoryTags = memo.getTags().stream()
+                .filter(tag -> tag.getCategory() == tagCategory)
+                .sorted(Comparator.comparing(Tag::getSortOrder))
+                .collect(Collectors.toList());
+            
+            if (!categoryTags.isEmpty()) {
+                return categoryTags.get(0);  // 선택된 대분류의 첫 번째 태그 (sort_order 최소)
+            }
+            
+            // 선택된 대분류에 태그가 없으면 다른 대분류의 태그 찾기
+            TagCategory otherCategory = (tagCategory == TagCategory.TYPE) 
+                ? TagCategory.TOPIC 
+                : TagCategory.TYPE;
+            List<Tag> otherCategoryTags = memo.getTags().stream()
+                .filter(tag -> tag.getCategory() == otherCategory)
+                .sorted(Comparator.comparing(Tag::getSortOrder))
+                .collect(Collectors.toList());
+            
+            if (!otherCategoryTags.isEmpty()) {
+                return otherCategoryTags.get(0);  // 다른 대분류의 첫 번째 태그
+            }
+            
+            return null;  // 태그가 있지만 대분류가 맞지 않는 경우 (이론적으로 발생하지 않아야 함)
+        };
+        
+        // 1차 그룹화: 태그별로 그룹화
+        Map<String, List<Memo>> memosByTagCode = new LinkedHashMap<>();
+        
+        for (Memo memo : memos) {
+            Tag representativeTag = getRepresentativeTag.apply(memo);
+            String tagCode = (representativeTag == null) ? "etc" : representativeTag.getCode();
+            memosByTagCode.computeIfAbsent(tagCode, k -> new ArrayList<>()).add(memo);
+        }
+        
+        // 태그별 그룹을 sort_order 기준으로 정렬 (etc는 마지막)
+        List<Map.Entry<String, List<Memo>>> sortedTagEntries = memosByTagCode.entrySet().stream()
+            .sorted((e1, e2) -> {
+                if ("etc".equals(e1.getKey())) return 1;  // etc는 항상 마지막
+                if ("etc".equals(e2.getKey())) return -1;
+                
+                // 각 태그 그룹의 첫 번째 메모의 대표 태그 sort_order로 비교
+                Tag tag1 = getRepresentativeTag.apply(e1.getValue().get(0));
+                Tag tag2 = getRepresentativeTag.apply(e2.getValue().get(0));
+                if (tag1 != null && tag2 != null) {
+                    return tag1.getSortOrder().compareTo(tag2.getSortOrder());
+                }
+                return 0;
+            })
+            .collect(Collectors.toList());
+        
+        // 결과 구성: 태그 그룹 -> 책 그룹 -> 메모
+        Map<String, TagMemoGroup> result = new LinkedHashMap<>();
+        
+        for (Map.Entry<String, List<Memo>> tagEntry : sortedTagEntries) {
+            String tagCode = tagEntry.getKey();
+            List<Memo> tagMemos = tagEntry.getValue();
+            
+            TagMemoGroup tagGroup = new TagMemoGroup();
+            tagGroup.setTagCode(tagCode);
+            tagGroup.setMemoCount(tagMemos.size());
+            
+            // 2차 그룹화: 각 태그 그룹 내에서 책별로 그룹화
+            Map<Long, List<Memo>> memosByBook = tagMemos.stream()
+                .collect(Collectors.groupingBy(m -> m.getUserShelfBook().getId()));
+            
+            Map<Long, BookMemoGroup> bookGroups = new LinkedHashMap<>();
+            
+            for (Map.Entry<Long, List<Memo>> bookEntry : memosByBook.entrySet()) {
+                Long bookId = bookEntry.getKey();
+                List<Memo> bookMemos = bookEntry.getValue();
+                
+                // 3차 정렬: 각 책 그룹 내에서 시간순으로 정렬
+                bookMemos.sort(Comparator.comparing(Memo::getMemoStartTime));
+                
+                BookMemoGroup bookGroup = new BookMemoGroup();
+                Memo firstMemo = bookMemos.get(0);
+                bookGroup.setBookId(bookId);
+                bookGroup.setBookTitle(firstMemo.getUserShelfBook().getBook().getTitle());
+                bookGroup.setBookIsbn(firstMemo.getUserShelfBook().getBook().getIsbn());
+                bookGroup.setMemoCount(bookMemos.size());
+                
+                // 메모를 MemoResponse로 변환
+                List<MemoResponse> memoResponses = bookMemos.stream()
+                    .map(memoMapper::toMemoResponse)
+                    .collect(Collectors.toList());
+                bookGroup.setMemos(memoResponses);
+                
+                bookGroups.put(bookId, bookGroup);
+            }
+            
+            tagGroup.setMemosByBook(bookGroups);
+            result.put(tagCode, tagGroup);
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 특정 날짜의 특정 책의 메모 조회 (오늘의 흐름에서 특정 책 필터링)
+     * 
+     * 기능 설명:
+     * - 오늘의 흐름 화면에서 특정 책을 선택하면 해당 책의 메모만 표시
+     * - 선택한 날짜에 작성된 메모만 조회
+     * - 오늘의 흐름과 동일한 화면 구성으로 표시
+     * - 메모는 타임라인 순서로 정렬됨 (memo_start_time 기준)
+     * 
+     * 참고: 노션 문서 (https://www.notion.so/29c4a8c8500980fc932cd55dcaa28ab1)
+     */
+    @Transactional(readOnly = true)
+    public List<Memo> getBookMemosByDate(User user, Long userBookId, LocalDate date) {
+        UserShelfBook userShelfBook = userShelfBookRepository.findById(userBookId)
+            .orElseThrow(() -> new IllegalArgumentException("책을 찾을 수 없습니다."));
+        
+        if (!userShelfBook.getUserId().equals(user.getId())) {
+            throw new IllegalArgumentException("권한이 없습니다.");
+        }
+        
+        // 날짜 범위 쿼리 사용 (인덱스 활용 최적화)
+        LocalDateTime[] dateRange = calculateDateRange(date);
+        return memoRepository.findByUserIdAndUserShelfBookIdAndDate(
+            user.getId(), userBookId, dateRange[0], dateRange[1]
+        );
+    }
+    
+    /**
+     * 특정 책의 모든 메모 조회 (날짜 제한 없음)
+     * 
+     * 기능 설명:
+     * - 특정 책에 작성된 모든 메모를 날짜 제한 없이 조회
+     * - 오늘의 흐름 형식으로 표시 가능
+     * - 메모는 타임라인 순서로 정렬됨 (memo_start_time 기준)
+     * - 가장 오래된 메모가 위에, 가장 최근 메모가 아래에 표시
+     * 
+     * 사용 시나리오:
+     * - 책의 흐름 기능: 월별 책 목록 또는 내 서재 책 목록에서 선택한 책의 모든 메모 조회
+     * - 전체 메모 조회: 선택한 책의 모든 메모를 오늘의 흐름 형식으로 조회 (날짜 제한 없음)
+     * 
+     * 참고: 섹션 1.3.3 책의 흐름 기능과의 관계
+     */
+    @Transactional(readOnly = true)
+    public List<Memo> getAllBookMemos(User user, Long userBookId) {
+        UserShelfBook userShelfBook = userShelfBookRepository.findById(userBookId)
+            .orElseThrow(() -> new IllegalArgumentException("책을 찾을 수 없습니다."));
+        
+        if (!userShelfBook.getUserId().equals(user.getId())) {
+            throw new IllegalArgumentException("권한이 없습니다.");
+        }
+        
+        // 날짜 제한 없이 모든 메모 조회 (타임라인 순서)
+        return memoRepository.findByUserIdAndUserShelfBookIdOrderByMemoStartTimeAsc(
+            user.getId(), userBookId
+        );
+    }
+    
+    /**
+     * 최근 기간 내에 메모가 작성된 책 목록 조회
+     * 
+     * 기능:
+     * - 최근 N개월 이내에 메모가 작성된 책들의 목록을 반환
+     * - 각 책의 최신 메모 작성 시간 기준으로 내림차순 정렬 (가장 최근에 메모를 작성한 책이 위에)
+     * - 책 정보(제목, 저자, ISBN, 카테고리 등) 포함
+     * 
+     * 사용 시나리오:
+     * - 책의 흐름 기능: 월별 책 목록 조회
+     * - 최근 활동한 책들을 우선적으로 표시
+     * - 내 서재와 연동하여 최근 메모 작성 책 목록 제공
+     * 
+     * 구현 방식:
+     * 1. Repository에서 최근 기간 내에 메모가 작성된 책 ID와 최신 메모 작성 시간 조회
+     * 2. 조회된 책 ID 목록을 기반으로 UserShelfBook 정보 조회
+     * 3. 최신 메모 작성 시간 기준으로 정렬하여 반환
+     * 
+     * 참고: 섹션 1.3.3 책의 흐름 기능과의 관계
+     */
+    @Transactional(readOnly = true)
+    public List<UserShelfBook> getBooksWithRecentMemos(User user, int monthsAgo) {
+        // 최근 N개월 전 날짜 계산
+        LocalDateTime startDate = LocalDateTime.now().minusMonths(monthsAgo);
+        
+        // 최근 기간 내에 메모가 작성된 책 ID 목록 조회 (최신 메모 작성 시간 기준 정렬)
+        List<Object[]> results = memoRepository.findUserShelfBookIdsWithLastMemoTime(
+            user.getId(), startDate
+        );
+        
+        // 책 ID 목록 추출
+        List<Long> bookIds = results.stream()
+            .map(result -> (Long) result[0])
+            .collect(Collectors.toList());
+        
+        if (bookIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        
+        // UserShelfBook 정보 조회 (최신 메모 작성 시간 순서 유지)
+        List<UserShelfBook> books = userShelfBookRepository.findAllById(bookIds);
+        
+        // 결과 순서를 최신 메모 작성 시간 기준으로 정렬
+        Map<Long, LocalDateTime> lastMemoTimeMap = results.stream()
+            .collect(Collectors.toMap(
+                result -> (Long) result[0],
+                result -> (LocalDateTime) result[1]
+            ));
+        
+        // 정렬: 최신 메모 작성 시간 기준 내림차순
+        // 사용자가 특정 책을 선택하여 삭제하면, 해당 책의 데이터와 해당 책에 작성된 메모의 데이터가 함께 전부 삭제됨 (ON DELETE CASCADE).
+        // 이 경우 findAllById()는 삭제된 책을 찾지 못하므로 결과에서 자동으로 제외됨 (정상 동작).
+        // getOrDefault()는 방어적 프로그래밍으로 동시성 이슈나 예외 상황에 대비.
+        books.sort((b1, b2) -> {
+            LocalDateTime time1 = lastMemoTimeMap.getOrDefault(b1.getId(), LocalDateTime.MIN);
+            LocalDateTime time2 = lastMemoTimeMap.getOrDefault(b2.getId(), LocalDateTime.MIN);
+            return time2.compareTo(time1); // 내림차순 (최신이 위에)
+        });
+        
+        return books;
+    }
+    
+    /**
+     * 책 덮기 (독서 활동 종료)
+     * 
+     * 기능 요약:
+     * - 마지막으로 읽은 페이지 수를 기록하고 독서 진행률을 업데이트합니다.
+     * - 독서 진행률에 따라 카테고리가 자동으로 변경됩니다.
+     * - 오늘의 흐름에서 해당 책의 메모가 섹션으로 구분되어 표시됩니다.
+     * 
+     * 상세 기능 설명은 섹션 1.2 주요 요구사항의 "책 덮기" 항목 및 섹션 15를 참조하세요.
+     * 
+     * 참고: 노션 문서 (https://www.notion.so/29d4a8c85009803aa90df9f6bdbf3568)
+     */
+    public void closeBook(User user, Long userBookId, Integer lastReadPage) {
+        UserShelfBook userShelfBook = userShelfBookRepository.findById(userBookId)
+            .orElseThrow(() -> new IllegalArgumentException("책을 찾을 수 없습니다."));
+        
+        if (!userShelfBook.getUserId().equals(user.getId())) {
+            throw new IllegalArgumentException("권한이 없습니다.");
+        }
+        
+        // 2. 페이지 수 유효성 검증
+        if (lastReadPage == null || lastReadPage < 1) {
+            throw new IllegalArgumentException("페이지 수는 1 이상이어야 합니다.");
+        }
+        
+        // 전체 페이지 수 확인 및 검증
+        Integer totalPages = userShelfBook.getBook() != null ? 
+            userShelfBook.getBook().getTotalPages() : null;
+        
+        if (totalPages != null && lastReadPage > totalPages) {
+            throw new IllegalArgumentException(
+                String.format("페이지 수는 전체 페이지 수(%d페이지)를 초과할 수 없습니다.", totalPages)
+            );
+        }
+        
+        // 3. 진행률 업데이트
+        userShelfBook.setReadingProgress(lastReadPage);
+        
+        // 4. 카테고리 자동 변경 로직
+        // 진행률에 따라 카테고리 자동 변경
+        // 진행률 계산: (lastReadPage / totalPages) * 100
+        // 카테고리 변경 기준은 섹션 15.4.2 데이터베이스 업데이트의 "카테고리 변경 기준 (예시)"를 참조하세요.
+        // 진행률 0%: ToRead
+        // 진행률 1~80%: Reading
+        // 진행률 81~99%: AlmostFinished
+        // 진행률 100%: Finished
+        if (totalPages != null && totalPages > 0) {
+            double progressPercentage = (lastReadPage * 100.0) / totalPages;
+            BookCategory newCategory;
+            
+            if (progressPercentage == 0) {
+                newCategory = BookCategory.ToRead;
+            } else if (progressPercentage >= 1 && progressPercentage <= 80) {
+                newCategory = BookCategory.Reading;
+            } else if (progressPercentage >= 81 && progressPercentage <= 99) {
+                newCategory = BookCategory.AlmostFinished;
+            } else { // progressPercentage >= 100
+                newCategory = BookCategory.Finished;
+            }
+            
+            // 카테고리 변경 (명시적 변경 플래그는 유지)
+            userShelfBook.setCategory(newCategory);
+        }
+        
+        userShelfBookRepository.save(userShelfBook);
+    }
+}
+

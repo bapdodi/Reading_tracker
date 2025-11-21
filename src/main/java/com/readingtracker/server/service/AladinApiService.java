@@ -1,9 +1,8 @@
 package com.readingtracker.server.service;
 
 import com.readingtracker.server.common.constant.BookSearchFilter;
-import com.readingtracker.server.dto.requestDTO.BookSearchRequest;
+import com.readingtracker.server.dto.responseDTO.AladinBookResponseDTO;
 import com.readingtracker.server.dto.responseDTO.BookDetailResponse;
-import com.readingtracker.server.dto.responseDTO.BookSearchResponse;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +18,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 public class AladinApiService {
@@ -40,17 +38,19 @@ public class AladinApiService {
     
     /**
      * 알라딘 API로 책 검색
+     * 외부 API 통신만 담당하며, 외부 DTO(AladinBookResponseDTO)만 반환합니다.
+     * 비즈니스 로직(검증/필터링)은 포함하지 않습니다.
      */
-    public BookSearchResponse searchBooks(BookSearchRequest request) {
+    public AladinBookResponseDTO searchBooks(String query, BookSearchFilter queryType, Integer start, Integer maxResults) {
         try {
             // API URL 구성
             String url = UriComponentsBuilder.fromHttpUrl(baseUrl + "/ItemSearch.aspx")
                     .queryParam("ttbkey", apiKey)
-                    .queryParam("Query", request.getQuery())
-                    .queryParam("QueryType", request.getQueryType().getApiValue())
-                    .queryParam("SearchTarget", request.getSearchTarget())
-                    .queryParam("Start", request.getStart())
-                    .queryParam("MaxResults", request.getMaxResults())
+                    .queryParam("Query", query)
+                    .queryParam("QueryType", queryType.getApiValue())
+                    .queryParam("SearchTarget", "Book")  // 기본값: 도서
+                    .queryParam("Start", start)
+                    .queryParam("MaxResults", maxResults)
                     .queryParam("Output", "JS")
                     .queryParam("Version", "20131101")
                     .build()
@@ -65,8 +65,8 @@ public class AladinApiService {
                 throw new RuntimeException("알라딘 API 응답이 비어있습니다.");
             }
             
-            // 응답 파싱
-            return parseSearchResponse(responseBody, request.getQuery(), request.getQueryType());
+            // 응답 파싱 (외부 DTO로만 변환)
+            return parseSearchResponse(responseBody);
             
         } catch (Exception e) {
             throw new RuntimeException("알라딘 API 호출 중 오류가 발생했습니다: " + e.getMessage(), e);
@@ -74,28 +74,41 @@ public class AladinApiService {
     }
     
     /**
-     * 알라딘 API 응답 파싱
+     * 알라딘 API 응답 파싱 (외부 DTO로만 변환)
+     * 비즈니스 로직(검증/필터링)은 포함하지 않습니다.
      */
     @SuppressWarnings("unchecked")
-    private BookSearchResponse parseSearchResponse(Map<String, Object> responseBody, String query, BookSearchFilter searchFilter) {
-        List<BookSearchResponse.BookInfo> books = new ArrayList<>();
+    private AladinBookResponseDTO parseSearchResponse(Map<String, Object> responseBody) {
+        List<AladinBookResponseDTO.AladinBookItemDTO> items = new ArrayList<>();
         
         // totalResults 파싱
         Integer totalResults = 0;
         if (responseBody.containsKey("totalResults")) {
-            totalResults = (Integer) responseBody.get("totalResults");
+            Object value = responseBody.get("totalResults");
+            totalResults = parseInteger(value);
+            if (totalResults == null) {
+                totalResults = 0;
+            }
         }
         
         // startIndex 파싱
         Integer startIndex = 1;
         if (responseBody.containsKey("startIndex")) {
-            startIndex = (Integer) responseBody.get("startIndex");
+            Object value = responseBody.get("startIndex");
+            Integer intValue = parseInteger(value);
+            if (intValue != null) {
+                startIndex = intValue;
+            }
         }
         
         // itemsPerPage 파싱
         Integer itemsPerPage = 10;
         if (responseBody.containsKey("itemsPerPage")) {
-            itemsPerPage = (Integer) responseBody.get("itemsPerPage");
+            Object value = responseBody.get("itemsPerPage");
+            Integer intValue = parseInteger(value);
+            if (intValue != null) {
+                itemsPerPage = intValue;
+            }
         }
         
         // item 배열 파싱
@@ -112,152 +125,60 @@ public class AladinApiService {
             }
             
             for (Map<String, Object> item : itemList) {
-                BookSearchResponse.BookInfo bookInfo = parseBookInfo(item);
-                books.add(bookInfo);
+                AladinBookResponseDTO.AladinBookItemDTO itemDto = parseBookItem(item);
+                items.add(itemDto);
             }
         }
         
-        // 검색 기준에 따른 결과 검증 (알라딘 API의 자동 대체 방지)
-        if (searchFilter == BookSearchFilter.TITLE && !books.isEmpty()) {
-            // TITLE 검색: 응답받은 책 목록 중에서 실제로 도서명에 검색어가 포함된 책만 필터링
-            // 공백 제거 후 비교하여 공백 차이로 인한 누락 방지
-            String queryNormalized = query.replaceAll("\\s+", "").toLowerCase();
-            books = books.stream()
-                    .filter(book -> {
-                        String title = book.getTitle();
-                        if (title == null || title.trim().isEmpty()) {
-                            return false;
-                        }
-                        String titleNormalized = title.replaceAll("\\s+", "").toLowerCase();
-                        return titleNormalized.contains(queryNormalized);
-                    })
-                    .collect(Collectors.toList());
-            
-            // 검증 후 실제 결과가 없으면 totalResults = 0으로 설정
-            if (books.isEmpty()) {
-                totalResults = 0;
-            } else {
-                totalResults = books.size();
-            }
-        } else if (searchFilter == BookSearchFilter.AUTHOR && !books.isEmpty()) {
-            // AUTHOR 검색: 응답받은 책 목록 중에서 실제로 저자명에 검색어가 포함된 책만 필터링
-            // 공백 제거 후 비교하여 공백 차이로 인한 누락 방지
-            String queryNormalized = query.replaceAll("\\s+", "").toLowerCase();
-            books = books.stream()
-                    .filter(book -> {
-                        String author = book.getAuthor();
-                        if (author == null || author.trim().isEmpty()) {
-                            return false;
-                        }
-                        String authorNormalized = author.replaceAll("\\s+", "").toLowerCase();
-                        return authorNormalized.contains(queryNormalized);
-                    })
-                    .collect(Collectors.toList());
-            
-            // 검증 후 실제 결과가 없으면 totalResults = 0으로 설정
-            if (books.isEmpty()) {
-                totalResults = 0;
-            } else {
-                totalResults = books.size();
-            }
-        } else if (searchFilter == BookSearchFilter.PUBLISHER && !books.isEmpty()) {
-            // PUBLISHER 검색: 응답받은 책 목록 중에서 실제로 출판사명에 검색어가 포함된 책만 필터링
-            // 공백 제거 후 비교하여 공백 차이로 인한 누락 방지
-            String queryNormalized = query.replaceAll("\\s+", "").toLowerCase();
-            books = books.stream()
-                    .filter(book -> {
-                        String publisher = book.getPublisher();
-                        if (publisher == null || publisher.trim().isEmpty()) {
-                            return false;
-                        }
-                        String publisherNormalized = publisher.replaceAll("\\s+", "").toLowerCase();
-                        return publisherNormalized.contains(queryNormalized);
-                    })
-                    .collect(Collectors.toList());
-            
-            // 검증 후 실제 결과가 없으면 totalResults = 0으로 설정
-            if (books.isEmpty()) {
-                totalResults = 0;
-            } else {
-                totalResults = books.size();
-            }
-        }
-        
-        return new BookSearchResponse(books, totalResults, startIndex, itemsPerPage, query, searchFilter);
+        return new AladinBookResponseDTO(totalResults, startIndex, itemsPerPage, items);
     }
     
     /**
-     * 개별 책 정보 파싱
+     * 개별 책 정보 파싱 (외부 DTO로만 변환)
+     * 알라딘 API의 필드명을 그대로 사용합니다.
      */
     @SuppressWarnings("unchecked")
-    private BookSearchResponse.BookInfo parseBookInfo(Map<String, Object> item) {
-        BookSearchResponse.BookInfo bookInfo = new BookSearchResponse.BookInfo();
+    private AladinBookResponseDTO.AladinBookItemDTO parseBookItem(Map<String, Object> item) {
+        AladinBookResponseDTO.AladinBookItemDTO itemDto = new AladinBookResponseDTO.AladinBookItemDTO();
         
         // ISBN 파싱
-        bookInfo.setIsbn((String) item.get("isbn"));
-        bookInfo.setIsbn13((String) item.get("isbn13"));
+        itemDto.setIsbn((String) item.get("isbn"));
+        itemDto.setIsbn13((String) item.get("isbn13"));
         
         // 기본 정보 파싱
-        bookInfo.setTitle((String) item.get("title"));
-        bookInfo.setAuthor((String) item.get("author"));
-        bookInfo.setPublisher((String) item.get("publisher"));
-        bookInfo.setDescription((String) item.get("description"));
-        bookInfo.setCoverUrl((String) item.get("cover"));
+        itemDto.setTitle((String) item.get("title"));
+        itemDto.setAuthor((String) item.get("author"));
+        itemDto.setPublisher((String) item.get("publisher"));
+        itemDto.setDescription((String) item.get("description"));
+        itemDto.setCover((String) item.get("cover"));  // 알라딘 API 필드명: cover
         
         // 가격 정보 파싱
-        if (item.get("pricesales") != null) {
-            bookInfo.setPriceSales((Integer) item.get("pricesales"));
-        }
-        if (item.get("pricestandard") != null) {
-            bookInfo.setPriceStandard((Integer) item.get("pricestandard"));
-        }
-        
-        // 출판일 파싱
-        if (item.get("pubdate") != null) {
-            String pubDateStr = (String) item.get("pubdate");
-            try {
-                LocalDate pubDate = LocalDate.parse(pubDateStr, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                bookInfo.setPubDate(pubDate);
-            } catch (Exception e) {
-                // 날짜 파싱 실패 시 무시
-            }
+        Object pricesalesObj = item.get("pricesales");
+        if (pricesalesObj != null) {
+            Integer pricesales = parseInteger(pricesalesObj);
+            itemDto.setPricesales(pricesales);
         }
         
-        // subInfo에서 추가 정보 파싱
+        Object pricestandardObj = item.get("pricestandard");
+        if (pricestandardObj != null) {
+            Integer pricestandard = parseInteger(pricestandardObj);
+            itemDto.setPricestandard(pricestandard);
+        }
+        
+        // 출판일 파싱 (문자열 그대로 저장)
+        itemDto.setPubdate((String) item.get("pubdate"));
+        
+        // subInfo 파싱 (Map 그대로 저장)
         if (item.containsKey("subInfo")) {
-            Map<String, Object> subInfo = (Map<String, Object>) item.get("subInfo");
-            
-            // 디버깅: subInfo 구조 로깅
-            /*
-            logger.debug("=== subInfo 구조 확인 ===");
-            logger.debug("subInfo keys: {}", subInfo.keySet());
-            logger.debug("subInfo 전체: {}", subInfo);
-            */
-            
-            // 총 페이지 수 파싱 - 여러 가능한 필드명 시도
-            Integer totalPages = parseTotalPages(subInfo);
-            if (totalPages != null) {
-                bookInfo.setTotalPages(totalPages);
-                logger.debug("totalPages 파싱 성공: {}", totalPages);
-            } else {
-                logger.debug("totalPages를 파싱할 수 없습니다. 사용 가능한 필드: {}", subInfo.keySet());
+            Object subInfoObj = item.get("subInfo");
+            if (subInfoObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> subInfo = (Map<String, Object>) subInfoObj;
+                itemDto.setSubInfo(subInfo);
             }
-            
-            // 장르 정보 파싱 (메인 태그)
-            String mainGenre = parseMainGenre(subInfo);
-            if (mainGenre != null) {
-                bookInfo.setMainGenre(mainGenre);
-                logger.debug("mainGenre 파싱 성공: {}", mainGenre);
-            } else {
-                logger.debug("mainGenre를 파싱할 수 없습니다. 사용 가능한 필드: {}", subInfo.keySet());
-                bookInfo.setMainGenre(null);
-            }
-        } else {
-            logger.debug("subInfo가 없습니다. item keys: {}", item.keySet());
-            bookInfo.setMainGenre(null);
         }
         
-        return bookInfo;
+        return itemDto;
     }
     
     /**
@@ -637,3 +558,4 @@ public class AladinApiService {
         return null;
     }
 }
+

@@ -6,11 +6,6 @@ import com.readingtracker.dbms.entity.User;
 import com.readingtracker.dbms.repository.PasswordResetTokenRepository;
 import com.readingtracker.dbms.repository.UserRepository;
 import com.readingtracker.server.common.util.PasswordValidator;
-import com.readingtracker.server.dto.requestDTO.AccountVerificationRequest;
-import com.readingtracker.server.dto.requestDTO.LoginIdRetrievalRequest;
-import com.readingtracker.server.dto.requestDTO.LoginRequest;
-import com.readingtracker.server.dto.requestDTO.PasswordResetRequest;
-import com.readingtracker.server.dto.requestDTO.RegistrationRequest;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -41,63 +36,60 @@ public class AuthService {
     
     /**
      * 회원가입 - Controller에서 호출
-     * @param request 회원가입 요청 DTO
+     * @param user 사용자 Entity (Mapper를 통해 DTO에서 변환됨)
+     * @param password 평문 비밀번호 (암호화 전)
      * @return 생성된 사용자 Entity
      */
-    public User register(RegistrationRequest request) {
-        return executeRegister(request);
+    public User register(User user, String password) {
+        return executeRegister(user, password);
     }
     
     /**
-     * 회원가입 실행 - Request DTO 사용
-     * @param request 회원가입 요청 DTO
+     * 회원가입 실행
+     * @param user 사용자 Entity
+     * @param password 평문 비밀번호
      * @return 생성된 사용자 엔티티
      */
-    private User executeRegister(RegistrationRequest request) {
+    private User executeRegister(User user, String password) {
         // 1. 중복 확인
-        if (userRepository.existsByLoginId(request.getLoginId())) {
+        if (userRepository.existsByLoginId(user.getLoginId())) {
             throw new IllegalArgumentException(ErrorCode.DUPLICATE_LOGIN_ID.getMessage());
         }
         
-        if (userRepository.existsByEmail(request.getEmail())) {
+        if (userRepository.existsByEmail(user.getEmail())) {
             throw new IllegalArgumentException(ErrorCode.DUPLICATE_EMAIL.getMessage());
         }
         
         // 2. 비밀번호 검증
-        passwordValidator.validate(request.getPassword());
+        passwordValidator.validate(password);
         
-        // 3. 비밀번호 암호화
-        String encodedPassword = passwordEncoder.encode(request.getPassword());
+        // 3. 비밀번호 암호화 및 설정
+        String encodedPassword = passwordEncoder.encode(password);
+        user.setPasswordHash(encodedPassword);
         
-        // 4. 사용자 생성
-        User user = new User(
-            request.getLoginId(),
-            request.getEmail(),
-            request.getName(),
-            encodedPassword
-        );
-        
-        // 5. 저장
+        // 4. 저장
         return userRepository.save(user);
     }
     
     /**
      * 로그인 - Controller에서 호출
-     * @param request 로그인 요청 DTO
+     * @param loginId 로그인 ID
+     * @param password 평문 비밀번호
      * @return 로그인 결과 (토큰 정보 및 사용자 Entity 포함)
      */
-    public LoginResult login(LoginRequest request) {
-        return executeLogin(request);
+    public LoginResult login(String loginId, String password) {
+        return executeLogin(loginId, password);
     }
     
     /**
-     * 로그인 실행 - Request DTO 사용
-     * @param request 로그인 요청 DTO
+     * 로그인 실행
+     * @param loginId 로그인 ID
+     * @param password 평문 비밀번호
      * @return 로그인 결과 (토큰 정보 및 사용자 Entity 포함)
      */
-    private LoginResult executeLogin(LoginRequest request) {
+    private LoginResult executeLogin(String loginId, String password) {
         // 1. 사용자 조회 (loginId만 허용)
-        User user = userRepository.findByLoginId(request.getLoginId())
+        User user = userRepository.findByLoginId(loginId)
             .orElseThrow(() -> new IllegalArgumentException(ErrorCode.USER_NOT_FOUND.getMessage()));
         
         // 2. 계정 상태 확인
@@ -110,7 +102,7 @@ public class AuthService {
         }
         
         // 3. 비밀번호 확인
-        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             // 로그인 실패 횟수 증가
             user.setFailedLoginCount(user.getFailedLoginCount() + 1);
             
@@ -141,21 +133,23 @@ public class AuthService {
     
     /**
      * 아이디 찾기 - Controller에서 호출
-     * @param request 아이디 찾기 요청 DTO
+     * @param email 이메일
+     * @param name 이름
      * @return 사용자 Entity
      */
-    public User findLoginIdByEmailAndName(LoginIdRetrievalRequest request) {
-        return executeFindLoginId(request);
+    public User findLoginIdByEmailAndName(String email, String name) {
+        return executeFindLoginId(email, name);
     }
     
     /**
-     * 아이디 찾기 실행 - Request DTO 사용
-     * @param request 아이디 찾기 요청 DTO
+     * 아이디 찾기 실행
+     * @param email 이메일
+     * @param name 이름
      * @return 사용자 엔티티
      */
-    private User executeFindLoginId(LoginIdRetrievalRequest request) {
+    private User executeFindLoginId(String email, String name) {
         // 이메일 + 이름으로 활성 사용자 조회 (둘 다 일치해야 함)
-        User user = userRepository.findActiveUserByEmailAndName(request.getEmail(), request.getName())
+        User user = userRepository.findActiveUserByEmailAndName(email, name)
             .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 계정입니다."));
         
         return user;
@@ -163,21 +157,23 @@ public class AuthService {
     
     /**
      * Step 1: 계정 확인 및 재설정 토큰 발급 - Controller에서 호출
-     * @param request 계정 확인 요청 DTO
+     * @param loginId 로그인 ID
+     * @param email 이메일
      * @return 재설정 토큰
      */
-    public String verifyAccountForPasswordReset(AccountVerificationRequest request) {
-        return executeVerifyAccount(request);
+    public String verifyAccountForPasswordReset(String loginId, String email) {
+        return executeVerifyAccount(loginId, email);
     }
     
     /**
-     * 계정 확인 실행 - Request DTO 사용
-     * @param request 계정 확인 요청 DTO
+     * 계정 확인 실행
+     * @param loginId 로그인 ID
+     * @param email 이메일
      * @return 재설정 토큰
      */
-    private String executeVerifyAccount(AccountVerificationRequest request) {
+    private String executeVerifyAccount(String loginId, String email) {
         // 1. loginId + email로 활성 사용자 조회 (둘 다 일치해야 함)
-        User user = userRepository.findActiveUserByLoginIdAndEmail(request.getLoginId(), request.getEmail())
+        User user = userRepository.findActiveUserByLoginIdAndEmail(loginId, email)
             .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 계정입니다."));
         
         // 2. 기존 토큰 삭제 (같은 사용자의 이전 재설정 토큰)
@@ -198,26 +194,30 @@ public class AuthService {
     
     /**
      * Step 2: 비밀번호 변경 - Controller에서 호출
-     * @param request 비밀번호 재설정 요청 DTO
+     * @param resetToken 재설정 토큰
+     * @param newPassword 새 비밀번호
+     * @param confirmPassword 확인 비밀번호
      * @return 변경된 사용자 Entity
      */
-    public User resetPassword(PasswordResetRequest request) {
-        return executeResetPassword(request);
+    public User resetPassword(String resetToken, String newPassword, String confirmPassword) {
+        return executeResetPassword(resetToken, newPassword, confirmPassword);
     }
     
     /**
-     * 비밀번호 변경 실행 - Request DTO 사용
-     * @param request 비밀번호 재설정 요청 DTO
+     * 비밀번호 변경 실행
+     * @param resetToken 재설정 토큰
+     * @param newPassword 새 비밀번호
+     * @param confirmPassword 확인 비밀번호
      * @return 변경된 사용자 Entity
      */
-    private User executeResetPassword(PasswordResetRequest request) {
+    private User executeResetPassword(String resetToken, String newPassword, String confirmPassword) {
         // 1. 토큰 검증
-        PasswordResetToken resetToken = passwordResetTokenRepository
-            .findValidToken(request.getResetToken(), LocalDateTime.now())
+        PasswordResetToken tokenEntity = passwordResetTokenRepository
+            .findValidToken(resetToken, LocalDateTime.now())
             .orElseThrow(() -> new IllegalArgumentException("유효하지 않거나 만료된 토큰입니다."));
         
         // 2. 토큰으로 사용자 조회
-        User user = userRepository.findById(resetToken.getUserId())
+        User user = userRepository.findById(tokenEntity.getUserId())
             .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         
         // 3. 사용자 상태 확인 (ACTIVE만 허용)
@@ -226,25 +226,25 @@ public class AuthService {
         }
         
         // 4. 새 비밀번호와 확인 비밀번호 일치 검증
-        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+        if (!newPassword.equals(confirmPassword)) {
             throw new IllegalArgumentException("새 비밀번호와 확인 비밀번호가 일치하지 않습니다.");
         }
         
         // 5. 새 비밀번호 강도 검증
-        passwordValidator.validate(request.getNewPassword());
+        passwordValidator.validate(newPassword);
         
         // 6. 기존 비밀번호와 동일한지 확인
-        if (passwordEncoder.matches(request.getNewPassword(), user.getPasswordHash())) {
+        if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
             throw new IllegalArgumentException("기존 비밀번호와 동일합니다.");
         }
         
         // 7. 새 비밀번호 암호화 및 저장
-        String newPasswordHash = passwordEncoder.encode(request.getNewPassword());
+        String newPasswordHash = passwordEncoder.encode(newPassword);
         user.setPasswordHash(newPasswordHash);
         
         // 8. 토큰 사용 처리 (재사용 방지)
-        resetToken.setUsed(true);
-        passwordResetTokenRepository.save(resetToken);
+        tokenEntity.setUsed(true);
+        passwordResetTokenRepository.save(tokenEntity);
         
         // 9. 사용자 저장
         return userRepository.save(user);

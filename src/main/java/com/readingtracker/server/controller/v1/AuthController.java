@@ -81,11 +81,14 @@ public class AuthController extends BaseV1Controller {
             @Parameter(description = "회원가입 정보", required = true)
             @RequestBody RegistrationRequest request) {
         
-        // Service 호출 (RequestDTO → Entity)
-        User user = authService.register(request);
+        // DTO → Entity 변환 (Mapper 사용)
+        User user = authMapper.toUserEntity(request);
+        
+        // Service 호출 (Entity와 비밀번호를 별도 파라미터로 전달)
+        User savedUser = authService.register(user, request.getPassword());
         
         // Entity → ResponseDTO 변환 (Mapper 사용)
-        RegisterResponse response = authMapper.toRegisterResponse(user);
+        RegisterResponse response = authMapper.toRegisterResponse(savedUser);
         
         return ApiResponse.success(response);
     }
@@ -141,8 +144,8 @@ public class AuthController extends BaseV1Controller {
             @Parameter(description = "로그인 정보", required = true)
             @RequestBody LoginRequest request) {
         
-        // Service 호출 (RequestDTO → Entity)
-        AuthService.LoginResult result = authService.login(request);
+        // Service 호출 (개별 파라미터 전달)
+        AuthService.LoginResult result = authService.login(request.getLoginId(), request.getPassword());
         
         // Entity → ResponseDTO 변환 (Mapper 사용)
         LoginResponse.UserInfo userInfo = authMapper.toLoginUserInfo(result.getUser());
@@ -167,8 +170,8 @@ public class AuthController extends BaseV1Controller {
             @Parameter(description = "아이디 찾기 정보 (이메일, 이름)", required = true)
             @RequestBody LoginIdRetrievalRequest request) {
         
-        // Service 호출 (RequestDTO → Entity)
-        User user = authService.findLoginIdByEmailAndName(request);
+        // Service 호출 (개별 파라미터 전달)
+        User user = authService.findLoginIdByEmailAndName(request.getEmail(), request.getName());
         
         // Entity → ResponseDTO 변환 (Mapper 사용)
         LoginIdRetrievalResponse response = authMapper.toLoginIdRetrievalResponse(user);
@@ -186,8 +189,8 @@ public class AuthController extends BaseV1Controller {
             @Parameter(description = "계정 확인 정보 (loginId, email)", required = true)
             @RequestBody AccountVerificationRequest request) {
         
-        // Service 호출 (RequestDTO → String 토큰)
-        String resetToken = authService.verifyAccountForPasswordReset(request);
+        // Service 호출 (개별 파라미터 전달)
+        String resetToken = authService.verifyAccountForPasswordReset(request.getLoginId(), request.getEmail());
         
         // ResponseDTO 생성
         AccountVerificationResponse response = new AccountVerificationResponse(
@@ -208,8 +211,8 @@ public class AuthController extends BaseV1Controller {
             @Parameter(description = "비밀번호 재설정 정보 (resetToken, newPassword, confirmPassword)", required = true)
             @RequestBody PasswordResetRequest request) {
         
-        // Service 호출 (RequestDTO → Entity)
-        User user = authService.resetPassword(request);
+        // Service 호출 (개별 파라미터 전달)
+        User user = authService.resetPassword(request.getResetToken(), request.getNewPassword(), request.getConfirmPassword());
         
         // Entity → ResponseDTO 변환 (Mapper 사용)
         PasswordResetResponse response = authMapper.toPasswordResetResponse(user);

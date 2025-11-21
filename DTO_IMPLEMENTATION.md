@@ -20,7 +20,7 @@
 - 외부 API 응답 구조(`AladinBookResponseDTO`)가 변경되면, 그 데이터를 사용하는 서버의 모든 계층(Service, Controller) 코드를 수정해야 합니다.
 
 **변환 할 경우**: 
-- 외부 데이터를 내부의 `ExternalBook` Entity나 Domain Model로 변환하는 Mapper만 수정하면 되므로, 서버의 **핵심 비즈니스 로직(Service)**은 외부 변화로부터 보호됩니다.
+- 외부 데이터를 내부의 `AladinBook` Entity나 Domain Model로 변환하는 Mapper만 수정하면 되므로, 서버의 **핵심 비즈니스 로직(Service)**은 외부 변화로부터 보호됩니다.
 
 #### B. 데이터 정제 및 유효성 확보
 
@@ -48,12 +48,12 @@
    ↓ 알라딘 API 호출 후, 수신된 JSON을 AladinBookResponseDTO (외부 DTO)로 파싱
    
 4. BookSearchService (계속)
-   ↓ AladinBookResponseDTO를 Mapper를 통해 ExternalBook Entity로 변환
+   ↓ AladinBookResponseDTO를 Mapper를 통해 AladinBook Entity로 변환
    ↓ 검색 결과 검증 및 정제 수행
-   ↓ ExternalBook Entity 리스트를 Controller로 반환
+   ↓ AladinBook Entity 리스트를 Controller로 반환
    
 5. BookSearchController (계속)
-   ↓ ExternalBook Entity를 클라이언트에게 보낼 BookSearchResponseDTO로 최종 변환하여 JSON 응답으로 반환
+   ↓ AladinBook Entity를 클라이언트에게 보낼 BookSearchResponseDTO로 최종 변환하여 JSON 응답으로 반환
 ```
 
 이 구조는 **알라딘 API 응답 구조(외부 DTO)**와 우리 서비스의 응답 구조(내부 DTO) 사이에 Entity라는 방어막을 두어 시스템의 안정성을 높여줍니다.
@@ -65,7 +65,7 @@
 │              BookSearchController                            │
 │  - 검색 조건 수신 (String query, BookSearchFilter 등)      │
 │  - BookSearchService 호출                                   │
-│  - ExternalBook Entity → BookSearchResponseDTO 변환         │
+│  - AladinBook Entity → BookSearchResponseDTO 변환         │
 │  - 클라이언트 응답 형식으로 최종 변환                        │
 └───────────────────────┬─────────────────────────────────────┘
                         │
@@ -77,7 +77,7 @@
 │  - AladinApiService 호출                                    │
 │  - 검색 결과 검증 및 정제                                   │
 │  - Mapper를 통한 DTO → Entity 변환 제어                     │
-│  - ExternalBook Entity 리스트 반환                          │
+│  - AladinBook Entity 리스트 반환                          │
 └───────────────────────┬─────────────────────────────────────┘
                         │
                         ↓
@@ -100,7 +100,7 @@
                         │
 ┌─────────────────────────────────────────────────────────────┐
 │              Mapper (AladinBookMapper)                       │
-│  - AladinBookResponseDTO → ExternalBook Entity 변환         │
+│  - AladinBookResponseDTO → AladinBook Entity 변환         │
 │  - 데이터 정제 및 유효성 검증                               │
 │  - 필드명 통일 (itemTitle → title, pubDate → publishedAt)  │
 │  (BookSearchService에서 호출)                               │
@@ -118,7 +118,7 @@
 | 서비스 명 | 책임 범위 | 역할 |
 |---------|---------|------|
 | **AladinApiService** | 외부 시스템 통합 (External) | 오직 알라딘 API 통신 및 데이터 파싱만 전담합니다.<br>1. HTTP 요청 생성 및 전송<br>2. JSON 응답 수신 및 **외부 DTO (AladinBookResponseDTO)**로 파싱<br>3. 변환 로직은 포함하지 않습니다. (혹은 외부 DTO를 내부 Entity로 변환하는 Mapper를 호출하는 최소한의 책임만 가짐) |
-| **BookSearchService** | 핵심 비즈니스 로직 (Internal) | 책 검색 관련 비즈니스 로직 및 흐름 제어를 전담합니다.<br>1. Controller로부터 검색 조건을 받습니다<br>2. AladinApiService를 호출하여 외부 데이터를 가져옵니다<br>3. 검색 결과 검증 및 정제, 외부 DTO를 내부 Entity로 변환하는 최종 로직을 수행합니다<br>4. 최종적으로 ExternalBook Entity 리스트를 Controller로 반환합니다 |
+| **BookSearchService** | 핵심 비즈니스 로직 (Internal) | 책 검색 관련 비즈니스 로직 및 흐름 제어를 전담합니다.<br>1. Controller로부터 검색 조건을 받습니다<br>2. AladinApiService를 호출하여 외부 데이터를 가져옵니다<br>3. 검색 결과 검증 및 정제, 외부 DTO를 내부 Entity로 변환하는 최종 로직을 수행합니다<br>4. 최종적으로 AladinBook Entity 리스트를 Controller로 반환합니다 |
 
 #### 4.2. 🔑 분리의 핵심 이점
 
@@ -153,13 +153,13 @@ public AladinBookResponseDTO searchBooks(String query, BookSearchFilter queryTyp
 **BookSearchService의 책임:**
 ```java
 // BookSearchService는 비즈니스 로직 및 흐름 제어 담당
-public List<ExternalBook> searchBooks(String query, BookSearchFilter queryType, ...) {
+public List<AladinBook> searchBooks(String query, BookSearchFilter queryType, ...) {
     // 1. Controller로부터 검색 조건 수신
     // 2. AladinApiService 호출하여 외부 DTO 획득
     AladinBookResponseDTO externalDto = aladinApiService.searchBooks(query, queryType, ...);
     
     // 3. Mapper를 통해 외부 DTO → 내부 Entity 변환
-    List<ExternalBook> entities = aladinBookMapper.toExternalBookList(externalDto);
+    List<AladinBook> entities = aladinBookMapper.toAladinBookList(externalDto);
     
     // 4. 검색 결과 검증 및 정제 (비즈니스 로직)
     // 5. Entity 리스트 반환
@@ -189,4 +189,118 @@ public List<ExternalBook> searchBooks(String query, BookSearchFilter queryType, 
 - 이 가이드는 **외부 API와의 통신**에 대한 DTO → Entity 변환 원칙입니다.
 - **내부 클라이언트 요청**에 대한 DTO → Entity 변환은 `ARCHITECTURE.md`의 "DTO → Entity 변환의 필요성" 섹션을 참고하세요.
 - 검색 요청(Read Operation)의 경우, Controller에서 Service로 전달하는 파라미터는 개별 파라미터로 전달하는 것이 권장됩니다. (자세한 내용은 `ARCHITECTURE.md` 참고)
+
+---
+
+## 📋 전체 코드 수정 계획 및 진행 상황
+
+이 섹션은 `DTO_IMPLEMENTATION.md`와 `ARCHITECTURE.md`의 원칙에 따라 코드를 개선하기 위한 작업 계획입니다. 각 작업을 완료할 때마다 체크 표시를 업데이트합니다.
+
+### Phase 1: 외부 API 관련 구조 구축 (DTO_IMPLEMENTATION.md)
+
+#### 1-1. AladinBookResponseDTO 생성
+- [x] **위치**: `dto/responseDTO/AladinBookResponseDTO.java`
+- [x] **역할**: 알라딘 API 원본 JSON 구조를 담는 외부 DTO
+- [x] **내용**: 알라딘 API 응답 필드를 그대로 매핑하는 DTO 클래스 생성
+
+#### 1-2. AladinBook Entity 생성
+- [x] **위치**: `dbms/entity/AladinBook.java`
+- [x] **역할**: 외부 API 데이터를 담는 비영속 Entity (DB 저장 없음)
+- [x] **내용**: 내부 도메인 모델로 표현된 책 정보 Entity 클래스 생성
+
+#### 1-3. AladinBookMapper 생성
+- [x] **위치**: `mapper/AladinBookMapper.java`
+- [x] **역할**: `AladinBookResponseDTO` → `AladinBook` 변환
+- [x] **내용**: MapStruct 기반 Mapper 인터페이스 생성
+
+#### 1-4. AladinApiService 리팩토링
+- [x] **위치**: `service/AladinApiService.java`
+- [x] **변경사항**:
+  - [x] 메서드 시그니처 변경: `searchBooks(String query, BookSearchFilter queryType, Integer start, Integer maxResults)` - 개별 파라미터로 변경
+  - [x] 반환 타입 변경: `AladinBookResponseDTO` (외부 DTO만 반환)
+  - [x] 비즈니스 로직 제거: 검증/필터링 로직 제거 (순수 외부 API 통신만)
+  - [x] `getBookDetail()` 메서드는 기존 유지 (별도 처리)
+
+#### 1-5. BookSearchService 생성
+- [x] **위치**: `service/BookSearchService.java`
+- [x] **역할**:
+  - [x] Controller로부터 개별 파라미터 수신
+  - [x] `AladinApiService` 호출하여 외부 DTO 획득
+  - [x] `AladinBookMapper`를 통해 외부 DTO → Entity 변환
+  - [x] 검색 결과 검증 및 정제 (비즈니스 로직)
+  - [x] `AladinBook` Entity 리스트 반환
+
+#### 1-6. BookSearchController 수정
+- [x] **위치**: `controller/v1/BookSearchController.java`
+- [x] **변경사항**:
+  - [x] `AladinApiService` 대신 `BookSearchService` 호출
+  - [x] `AladinBook` Entity → `BookSearchResponseDTO` 변환 (Mapper 사용)
+  - [x] 개별 파라미터를 그대로 Service에 전달
+
+---
+
+### Phase 2: Auth 관련 구조 수정 (ARCHITECTURE.md 원칙 준수)
+
+#### 2-1. AuthMapper 확장
+- [x] **위치**: `mapper/AuthMapper.java`
+- [x] **추가 메서드**:
+  - [x] `toUserEntity()` 메서드 이미 존재 (RegistrationRequest → User Entity)
+  - [x] Read Operation은 개별 파라미터로 전달하므로 별도 Mapper 메서드 불필요
+- [x] **참고**: Read Operation은 개별 파라미터로 전달하므로 Entity 변환 불필요
+
+#### 2-2. AuthService 수정
+- [x] **위치**: `service/AuthService.java`
+- [x] **변경사항**:
+  - [x] `register(User user, String password)` - Entity와 비밀번호를 별도 파라미터로 받도록 변경
+  - [x] `login(String loginId, String password)` - 개별 파라미터로 변경
+  - [x] `findLoginIdByEmailAndName(String email, String name)` - 개별 파라미터로 변경
+  - [x] `verifyAccountForPasswordReset(String loginId, String email)` - 개별 파라미터로 변경
+  - [x] `resetPassword(String resetToken, String newPassword, String confirmPassword)` - 개별 파라미터로 변경
+
+#### 2-3. AuthController 수정
+- [x] **위치**: `controller/v1/AuthController.java`
+- [x] **변경사항**:
+  - [x] `signup()`: `authMapper.toUserEntity(request)` → `authService.register(user, request.getPassword())`
+  - [x] `login()`: `authService.login(request.getLoginId(), request.getPassword())`
+  - [x] `findLoginId()`: `authService.findLoginIdByEmailAndName(request.getEmail(), request.getName())`
+  - [x] `verifyAccount()`: `authService.verifyAccountForPasswordReset(request.getLoginId(), request.getEmail())`
+  - [x] `resetPassword()`: `authService.resetPassword(request.getResetToken(), request.getNewPassword(), request.getConfirmPassword())`
+
+---
+
+### Phase 3: BookShelf 관련 구조 수정 (ARCHITECTURE.md 원칙 준수)
+
+#### 3-1. BookMapper 확장
+- [x] **위치**: `mapper/BookMapper.java`
+- [x] **추가 메서드**:
+  - [x] `updateUserShelfBookFromStartReadingRequest(UserShelfBook userBook, StartReadingRequest request)` - 기존 Entity 업데이트
+  - [x] `updateUserShelfBookFromFinishReadingRequest(UserShelfBook userBook, FinishReadingRequest request)` - 기존 Entity 업데이트
+  - [x] `updateUserShelfBookFromBookDetailUpdateRequest(UserShelfBook userBook, BookDetailUpdateRequest request)` - 기존 Entity 업데이트
+
+#### 3-2. BookShelfController 수정
+- [x] **위치**: `controller/v1/BookShelfController.java`
+- [x] **변경사항**:
+  - [x] `startReading()`: 직접 필드 설정 제거 → `bookMapper.updateUserShelfBookFromStartReadingRequest(userBook, request)` 사용
+  - [x] `finishReading()`: 직접 필드 설정 제거 → `bookMapper.updateUserShelfBookFromFinishReadingRequest(userBook, request)` 사용
+  - [x] `updateBookDetail()`: 직접 필드 설정 제거 → `bookMapper.updateUserShelfBookFromBookDetailUpdateRequest(userBook, request)` 사용
+
+---
+
+### 예상 변경사항 요약
+
+**새로 생성:**
+- `AladinBookResponseDTO`, `AladinBook`, `AladinBookMapper`, `BookSearchService`
+
+**수정:**
+- `AladinApiService`, `BookSearchController`
+- `AuthMapper`, `AuthService`, `AuthController`
+- `BookMapper`, `BookShelfController`
+
+---
+
+### 작업 순서
+
+1. **Phase 1**: 외부 API 구조 구축 (1-1 → 1-2 → 1-3 → 1-4 → 1-5 → 1-6)
+2. **Phase 2**: Auth 구조 수정 (2-1 → 2-2 → 2-3)
+3. **Phase 3**: BookShelf 구조 수정 (3-1 → 3-2)
 

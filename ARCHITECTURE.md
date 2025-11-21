@@ -309,7 +309,7 @@ books (1) ← (N) user_books
 ### 결정사항: 히스토리 방식 (옵션 1) 선택
 
 **구조**:
-- 단일 `memos` 테이블에 모든 버전 저장
+- 단일 `memo` 테이블에 모든 버전 저장
 - `version` 컬럼으로 버전 관리
 - `is_deleted` 플래그로 삭제 여부 표시
 - 최신 메모: `version DESC`, `is_deleted = false` 조건으로 조회

@@ -2,10 +2,11 @@ package com.readingtracker.server.controller.v1;
 
 import com.readingtracker.server.common.constant.BookSearchFilter;
 import com.readingtracker.server.dto.ApiResponse;
-import com.readingtracker.server.dto.requestDTO.BookSearchRequest;
 import com.readingtracker.server.dto.responseDTO.BookDetailResponse;
 import com.readingtracker.server.dto.responseDTO.BookSearchResponse;
+import com.readingtracker.server.mapper.BookMapper;
 import com.readingtracker.server.service.AladinApiService;
+import com.readingtracker.server.service.BookSearchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -18,7 +19,13 @@ import org.springframework.web.bind.annotation.*;
 public class BookSearchController extends BaseV1Controller {
     
     @Autowired
-    private AladinApiService aladinApiService;
+    private BookSearchService bookSearchService;
+    
+    @Autowired
+    private BookMapper bookMapper;
+    
+    @Autowired
+    private AladinApiService aladinApiService;  // getBookDetail 메서드용
     
     /**
      * 책 검색 (비인증)
@@ -39,19 +46,11 @@ public class BookSearchController extends BaseV1Controller {
             @Parameter(description = "페이지당 결과 수 (최대 50)")
             @RequestParam(defaultValue = "10") Integer maxResults) {
         
-        // BookSearchRequest 생성 및 검증
-        BookSearchRequest request = new BookSearchRequest();
-        request.setQuery(query);
-        request.setQueryType(queryType);
-        request.setStart(start);
-        request.setMaxResults(maxResults);
+        // BookSearchService 호출 (개별 파라미터 전달)
+        var entities = bookSearchService.searchBooks(query, queryType, start, maxResults);
         
-        // 검증 수행 (@Valid는 @ModelAttribute와 함께 사용하거나 수동 검증 필요)
-        // GET 요청이므로 @ModelAttribute 대신 수동으로 검증하거나 Validator 사용
-        // 여기서는 간단하게 DTO 생성 후 Service 호출
-        // 실제 검증은 Service 계층에서 처리하거나 별도 Validator 사용 가능
-        
-        BookSearchResponse response = aladinApiService.searchBooks(request);
+        // Entity → ResponseDTO 변환 (Mapper 사용)
+        BookSearchResponse response = bookMapper.toBookSearchResponse(entities, query, queryType);
         
         return ApiResponse.success(response);
     }
