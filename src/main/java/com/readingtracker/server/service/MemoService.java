@@ -171,6 +171,11 @@ public class MemoService {
             user.getId(), dateRange[0], dateRange[1]
         );
         
+        // null 체크: userShelfBook이 null인 메모는 필터링
+        memos = memos.stream()
+            .filter(m -> m.getUserShelfBook() != null && m.getUserShelfBook().getBook() != null)
+            .collect(Collectors.toList());
+        
         // 책별로 그룹화
         return memos.stream()
             .collect(Collectors.groupingBy(
@@ -178,16 +183,35 @@ public class MemoService {
                 Collectors.collectingAndThen(
                     Collectors.toList(),
                     memoList -> {
+                        if (memoList.isEmpty()) {
+                            return null; // 빈 리스트는 null 반환 (필터링됨)
+                        }
+                        
                         BookMemoGroup group = new BookMemoGroup();
                         Memo firstMemo = memoList.get(0);
-                        group.setBookId(firstMemo.getUserShelfBook().getId());
-                        group.setBookTitle(firstMemo.getUserShelfBook().getBook().getTitle());
-                        group.setBookIsbn(firstMemo.getUserShelfBook().getBook().getIsbn());
+                        UserShelfBook userShelfBook = firstMemo.getUserShelfBook();
+                        
+                        // null 체크 (이미 필터링했지만 안전을 위해)
+                        if (userShelfBook == null || userShelfBook.getBook() == null) {
+                            return null;
+                        }
+                        
+                        group.setBookId(userShelfBook.getId());
+                        group.setBookTitle(userShelfBook.getBook().getTitle());
+                        group.setBookIsbn(userShelfBook.getBook().getIsbn());
                         group.setMemos(memoMapper.toMemoResponseList(memoList));
                         group.setMemoCount(memoList.size());
                         return group;
                     }
                 )
+            ))
+            .entrySet().stream()
+            .filter(entry -> entry.getValue() != null) // null 그룹 제거
+            .collect(Collectors.toMap(
+                Map.Entry::getKey,
+                Map.Entry::getValue,
+                (v1, v2) -> v1,
+                LinkedHashMap::new
             ));
     }
     
