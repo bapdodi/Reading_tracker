@@ -510,5 +510,23 @@ public class MemoService {
         
         userShelfBookRepository.save(userShelfBook);
     }
+    
+    /**
+     * 특정 년/월에 메모가 작성된 날짜 목록 조회
+     * 캘린더 표시용: 날짜 문자열 리스트 반환 (ISO 8601 형식: YYYY-MM-DD)
+     * 
+     * @param user 사용자
+     * @param year 조회할 년도
+     * @param month 조회할 월 (1-12)
+     * @return 날짜 문자열 리스트 (예: ["2024-01-15", "2024-01-20"])
+     */
+    public List<String> getMemoDates(User user, int year, int month) {
+        List<LocalDate> dates = memoRepository.findDistinctDatesByUserIdAndYearAndMonth(
+            user.getId(), year, month
+        );
+        return dates.stream()
+            .map(LocalDate::toString)  // ISO 8601 형식으로 변환
+            .collect(Collectors.toList());
+    }
 }
 

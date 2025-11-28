@@ -18,6 +18,8 @@ public class CorsConfig {
         // 허용할 오리진 설정
         configuration.setAllowedOriginPatterns(Arrays.asList(
             "http://localhost:3000",
+            "http://localhost:8000",
+            "http://127.0.0.1:8000",
             "http://localhost:8080"
         ));
         

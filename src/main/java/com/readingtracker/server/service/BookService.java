@@ -31,30 +31,37 @@ public class BookService {
      */
     public UserShelfBook addBookToShelf(Book book, UserShelfBook userShelfBook) {
         // 1. ISBN으로 Book 테이블에 이미 존재하는지 확인
-        if (book.getId() == null && bookRepository.existsByIsbn(book.getIsbn())) {
-            throw new IllegalArgumentException("이미 Book 테이블에 존재하는 ISBN입니다. 직접 등록할 수 없습니다.");
+        // books 테이블에 ISBN이 존재하면 해당 Book을 재사용하고, 없으면 새로 생성
+        Book savedBook;
+        if (book.getId() != null) {
+            // 이미 ID가 있는 경우 (기존 Book)
+            savedBook = book;
+        } else {
+            // ISBN으로 기존 Book 조회
+            Optional<Book> existingBook = bookRepository.findByIsbn(book.getIsbn());
+            if (existingBook.isPresent()) {
+                // 기존 Book이 있으면 재사용
+                savedBook = existingBook.get();
+            } else {
+                // 기존 Book이 없으면 새로 생성
+                savedBook = bookRepository.save(book);
+            }
         }
         
-        // 2. Book 저장 (새로운 Book인 경우)
-        Book savedBook = book;
-        if (book.getId() == null) {
-            savedBook = bookRepository.save(book);
-        }
-        
-        // 3. UserShelfBook에 Book 설정
+        // 2. UserShelfBook에 Book 설정
         userShelfBook.setBook(savedBook);
         
-        // 4. 중복 추가 방지 체크
-        Optional<UserShelfBook> existingBook = userBookRepository.findByUserIdAndBookId(
+        // 3. 중복 추가 방지 체크 (user_books 테이블에서 해당 사용자의 중복 확인)
+        Optional<UserShelfBook> existingUserBook = userBookRepository.findByUserIdAndBookId(
             userShelfBook.getUserId(), savedBook.getId());
-        if (existingBook.isPresent()) {
+        if (existingUserBook.isPresent()) {
             throw new IllegalArgumentException("이미 내 서재에 추가된 책입니다.");
         }
         
-        // 5. 카테고리별 입력값 검증
+        // 4. 카테고리별 입력값 검증
         validateCategorySpecificFields(userShelfBook);
         
-        // 6. UserShelfBook 저장
+        // 5. UserShelfBook 저장
         return userBookRepository.save(userShelfBook);
     }
     

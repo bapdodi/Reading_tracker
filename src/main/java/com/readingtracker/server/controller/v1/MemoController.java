@@ -30,6 +30,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.time.LocalDate;
 import java.util.List;
@@ -346,6 +347,31 @@ public class MemoController extends BaseV1Controller {
         User user = getCurrentUser();
         memoService.closeBook(user, userBookId, request.getLastReadPage());
         return ApiResponse.success("독서 활동이 종료되었습니다.");
+    }
+    
+    /**
+     * 메모 작성 날짜 목록 조회 (캘린더용)
+     * GET /api/v1/memos/dates?year={year}&month={month}
+     * 
+     * 특정 년/월에 메모가 작성된 날짜 목록을 조회합니다.
+     * 캘린더에서 메모가 작성된 날짜를 표시하는 데 사용됩니다.
+     */
+    @GetMapping("/memos/dates")
+    @Operation(
+        summary = "메모 작성 날짜 목록 조회",
+        description = "특정 년/월에 메모가 작성된 날짜 목록을 조회합니다. " +
+                     "캘린더에서 메모가 작성된 날짜를 표시하는 데 사용됩니다.",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ApiResponse<List<String>> getMemoDates(
+            @Parameter(description = "조회할 년도", required = true)
+            @RequestParam int year,
+            @Parameter(description = "조회할 월 (1-12)", required = true)
+            @RequestParam @Min(1) @Max(12) int month) {
+        
+        User user = getCurrentUser();
+        List<String> dates = memoService.getMemoDates(user, year, month);
+        return ApiResponse.success(dates);
     }
     
     /**

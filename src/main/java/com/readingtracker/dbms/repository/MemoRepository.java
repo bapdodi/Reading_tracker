@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -124,6 +125,19 @@ public interface MemoRepository extends JpaRepository<Memo, Long> {
     List<Object[]> findUserShelfBookIdsWithLastMemoTime(
         @Param("userId") Long userId,
         @Param("startDate") LocalDateTime startDate
+    );
+    
+    // 특정 사용자의 특정 년/월에 메모가 작성된 날짜 목록 조회 (중복 제거, 캘린더용)
+    // DATE() 함수를 사용하여 LocalDateTime에서 날짜만 추출
+    @Query("SELECT DISTINCT CAST(m.memoStartTime AS date) FROM Memo m " +
+           "WHERE m.user.id = :userId " +
+           "AND YEAR(m.memoStartTime) = :year " +
+           "AND MONTH(m.memoStartTime) = :month " +
+           "ORDER BY CAST(m.memoStartTime AS date) ASC")
+    List<LocalDate> findDistinctDatesByUserIdAndYearAndMonth(
+        @Param("userId") Long userId,
+        @Param("year") int year,
+        @Param("month") int month
     );
 }
 

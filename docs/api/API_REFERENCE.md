@@ -337,17 +337,24 @@ GET /api/v1/users/duplicate/email?value=user@example.com
   "ok": true,
   "data": {
     "totalResults": 100,
-    "start": 1,
-    "maxResults": 10,
+    "startIndex": 1,
+    "itemsPerPage": 10,
+    "query": "자바",
+    "searchFilter": "TITLE",
     "books": [
       {
         "isbn": "9788937461234",
+        "isbn13": "9788937461234",
         "title": "책 제목",
         "author": "저자명",
         "publisher": "출판사명",
-        "pubDate": "2024-01-01",
         "description": "책 설명",
-        "coverImageUrl": "https://..."
+        "coverUrl": "https://...",
+        "totalPages": 300,
+        "mainGenre": "소설",
+        "pubDate": "2024-01-01",
+        "priceSales": 15000,
+        "priceStandard": 18000
       }
     ]
   },
@@ -377,14 +384,15 @@ GET /api/v1/books/search?query=자바&queryType=TITLE&start=1&maxResults=10
   "ok": true,
   "data": {
     "isbn": "9788937461234",
+    "isbn13": "9788937461234",
     "title": "책 제목",
     "author": "저자명",
     "publisher": "출판사명",
     "pubDate": "2024-01-01",
+    "coverUrl": "https://...",
     "description": "책 설명",
-    "coverImageUrl": "https://...",
-    "price": 15000,
-    "category": "소설"
+    "totalPages": 300,
+    "mainGenre": "소설"
   },
   "error": null
 }
@@ -412,24 +420,38 @@ GET /api/v1/books/9788937461234
   "title": "책 제목",
   "author": "저자명",
   "publisher": "출판사명",
-  "pubDate": "2024-01-01",
   "description": "책 설명",
-  "coverImageUrl": "https://...",
+  "coverUrl": "https://...",
+  "totalPages": 300,
+  "mainGenre": "소설",
+  "pubDate": "2024-01-01",
   "category": "ToRead",
-  "expectation": "이 책에 대한 기대감"
+  "expectation": "이 책에 대한 기대감",
+  "readingStartDate": "2024-01-15",
+  "readingProgress": 50,
+  "purchaseType": "PURCHASED",
+  "readingFinishedDate": "2024-01-20",
+  "rating": 5,
+  "review": "매우 좋은 책이었습니다."
 }
 ```
+
+**필드 설명**:
+- 기본 필드: `isbn`, `title`, `author`, `publisher`, `description`, `coverUrl`, `totalPages`, `mainGenre`, `pubDate`, `category` (필수)
+- 카테고리별 필드:
+  - `ToRead`: `expectation` (선택사항, 500자 이하)
+  - `Reading`, `AlmostFinished`: `readingStartDate` (필수), `readingProgress` (필수, 0 이상), `purchaseType` (선택사항: PURCHASED, BORROWED, GIFTED, LIBRARY)
+  - `Finished`: `readingStartDate` (필수), `readingProgress` (필수), `readingFinishedDate` (필수), `rating` (필수, 1~5), `review` (선택사항)
 
 **응답** (`BookAdditionResponse`):
 ```json
 {
   "ok": true,
   "data": {
-    "userBookId": 1,
-    "isbn": "9788937461234",
+    "message": "책이 내 서재에 추가되었습니다.",
+    "bookId": 1,
     "title": "책 제목",
-    "category": "ToRead",
-    "addedAt": "2024-01-15T10:30:00"
+    "category": "ToRead"
   },
   "error": null
 }
@@ -464,18 +486,20 @@ GET /api/v1/books/9788937461234
     "books": [
       {
         "userBookId": 1,
+        "bookId": 1,
         "isbn": "9788937461234",
         "title": "책 제목",
         "author": "저자명",
         "publisher": "출판사명",
-        "coverImageUrl": "https://...",
+        "description": "도서 설명",
+        "coverUrl": "https://...",
+        "totalPages": 300,
+        "mainGenre": "소설",
+        "pubDate": "2024-01-01",
         "category": "ToRead",
-        "addedAt": "2024-01-15T10:30:00",
-        "readingStartDate": null,
-        "readingProgress": null,
-        "readingFinishedDate": null,
-        "rating": null,
-        "review": null
+        "lastReadPage": null,
+        "lastReadAt": null,
+        "addedAt": "2024-01-15T10:30:00"
       }
     ]
   },
@@ -1026,6 +1050,42 @@ POST /api/v1/memos/books/1/close
 - 독서 활동을 종료하고 마지막으로 읽은 페이지 수를 기록합니다.
 - 독서 진행률이 업데이트되며, 진행률에 따라 카테고리가 자동으로 변경될 수 있습니다.
 - 책 덮기 후 오늘의 흐름에서 해당 책의 메모가 섹션으로 구분되어 표시됩니다.
+
+---
+
+### 5.8 메모 작성 날짜 목록 조회
+
+**엔드포인트**: `GET /api/v1/memos/dates`
+
+**인증**: 필요
+
+**요청 파라미터**:
+- `year` (int, required): 조회할 년도 (예: 2024)
+- `month` (int, required): 조회할 월 (1-12)
+
+**응답**:
+```json
+{
+  "ok": true,
+  "data": [
+    "2024-01-15",
+    "2024-01-20",
+    "2024-01-25"
+  ],
+  "error": null
+}
+```
+
+**예시**:
+```
+GET /api/v1/memos/dates?year=2024&month=1
+```
+
+**설명**:
+- 특정 년/월에 메모가 작성된 날짜 목록을 조회합니다.
+- 캘린더에서 메모가 작성된 날짜를 표시하는 데 사용됩니다.
+- 날짜는 ISO 8601 형식 (`YYYY-MM-DD`)으로 반환됩니다.
+- 메모가 작성된 날짜만 반환되며, 중복 제거되어 정렬된 순서로 반환됩니다.
 
 ---
 
