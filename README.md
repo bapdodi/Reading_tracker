@@ -58,9 +58,11 @@ Reading Tracker는 사용자가 읽은 책을 기록하고 관리할 수 있는 
 - **다양한 그룹화 방식**:
   - **세션 모드**: 시간축 기준 세션 단위 그룹화 (프론트엔드에서 시간축 재배치)
   - **책 모드**: 책별로 그룹화하여 조회
-  - **태그 모드**: 태그별로 그룹화 (태그 내부에서 책별 재그룹화)
-- **독서 활동 관리**:
+  - **태그 모드**: 태그별로 그룹화
+  - **독서 활동 관리**:
   - 책 덮기 기능 (독서 활동 종료 및 마지막 페이지 기록)
+    - ToRead 카테고리 책의 경우 독서 시작일이 첫 메모 작성 날짜로 자동 설정
+    - 진행률 100%인 경우 Finished 카테고리로 변경 및 평점/후기 입력
   - 최근 메모 작성 책 목록 조회
   - 독서 캘린더 연동
 
@@ -118,10 +120,12 @@ CREATE DATABASE reading_tracker CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
 ```yaml
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/reading_tracker?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/reading_tracker?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
     username: {your_username}
     password: {your_password}
 ```
+   
+   **참고**: 프로젝트는 한국 시간대(Asia/Seoul, UTC+9)를 기준으로 동작합니다. 모든 시간 필드값이 한국 시간대로 저장됩니다.
 
 3. 알라딘 API 키 설정 (선택사항):
 ```yaml

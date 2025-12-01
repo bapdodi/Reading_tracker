@@ -32,10 +32,12 @@ INSERT INTO tags (category, code, sort_order, is_active) VALUES
 -- 필수: 기타(etc) 태그
 -- ============================================
 -- 태그 미선택 시 자동 연결되는 '기타' 태그는 필수입니다.
--- TYPE 대분류에 포함되며, sort_order는 99로 설정하여 항상 마지막에 위치합니다.
+-- TYPE과 TOPIC 두 대분류 모두에 포함되며, sort_order는 99로 설정하여 항상 마지막에 위치합니다.
 -- 주의: code는 반드시 'etc'여야 하며, 태그 자동 연결 로직에서 사용됩니다.
+-- 각 대분류별로 별도의 etc 태그가 존재하므로, 태그 자동 연결 시 현재 선택된 대분류에 맞는 etc 태그를 선택합니다.
 INSERT INTO tags (category, code, sort_order, is_active) VALUES
-('TYPE', 'etc', 99, TRUE);
+('TYPE', 'etc', 99, TRUE),
+('TOPIC', 'etc', 99, TRUE);
 
 -- 참고:
 -- 1. 각 태그의 code는 UNIQUE 제약이 있으므로 중복될 수 없습니다.
@@ -43,4 +45,5 @@ INSERT INTO tags (category, code, sort_order, is_active) VALUES
 -- 3. is_active는 태그 활성화 상태를 나타냅니다 (TRUE: 활성, FALSE: 비활성).
 -- 4. 태그 코드는 소문자로 정규화되어 저장되며, 하이픈(-)을 사용하여 구분합니다.
 -- 5. 'etc' 태그는 태그 미선택 시 자동으로 연결되므로 반드시 존재해야 합니다.
+-- 6. 'etc' 태그는 TYPE과 TOPIC 두 대분류 모두에 존재하며, 태그 자동 연결 시 현재 선택된 대분류에 맞는 etc 태그를 선택합니다.
 

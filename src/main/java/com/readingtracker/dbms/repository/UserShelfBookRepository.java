@@ -46,35 +46,35 @@ public interface UserShelfBookRepository extends JpaRepository<UserShelfBook, Lo
     List<UserShelfBook> findByUserIdAndCategoryOrderByCreatedAtDesc(@Param("userId") Long userId, @Param("category") BookCategory category);
     
     // 정렬된 조회 - 도서명 기준 오름차순
-    @Query("SELECT ub FROM UserShelfBook ub JOIN ub.book b WHERE ub.user.id = :userId ORDER BY b.title ASC")
+    @Query("SELECT ub FROM UserShelfBook ub JOIN FETCH ub.book b WHERE ub.user.id = :userId ORDER BY b.title ASC")
     List<UserShelfBook> findByUserIdOrderByTitleAsc(@Param("userId") Long userId);
     
     // 정렬된 조회 - 저자명 기준 오름차순
-    @Query("SELECT ub FROM UserShelfBook ub JOIN ub.book b WHERE ub.user.id = :userId ORDER BY b.author ASC")
+    @Query("SELECT ub FROM UserShelfBook ub JOIN FETCH ub.book b WHERE ub.user.id = :userId ORDER BY b.author ASC")
     List<UserShelfBook> findByUserIdOrderByAuthorAsc(@Param("userId") Long userId);
     
     // 정렬된 조회 - 출판사명 기준 오름차순
-    @Query("SELECT ub FROM UserShelfBook ub JOIN ub.book b WHERE ub.user.id = :userId ORDER BY b.publisher ASC")
+    @Query("SELECT ub FROM UserShelfBook ub JOIN FETCH ub.book b WHERE ub.user.id = :userId ORDER BY b.publisher ASC")
     List<UserShelfBook> findByUserIdOrderByPublisherAsc(@Param("userId") Long userId);
     
     // 정렬된 조회 - 메인 장르 기준 오름차순
-    @Query("SELECT ub FROM UserShelfBook ub JOIN ub.book b WHERE ub.user.id = :userId ORDER BY b.mainGenre ASC")
+    @Query("SELECT ub FROM UserShelfBook ub JOIN FETCH ub.book b WHERE ub.user.id = :userId ORDER BY b.mainGenre ASC")
     List<UserShelfBook> findByUserIdOrderByGenreAsc(@Param("userId") Long userId);
     
     // 카테고리별 정렬된 조회 - 도서명 기준 오름차순
-    @Query("SELECT ub FROM UserShelfBook ub JOIN ub.book b WHERE ub.user.id = :userId AND ub.category = :category ORDER BY b.title ASC")
+    @Query("SELECT ub FROM UserShelfBook ub JOIN FETCH ub.book b WHERE ub.user.id = :userId AND ub.category = :category ORDER BY b.title ASC")
     List<UserShelfBook> findByUserIdAndCategoryOrderByTitleAsc(@Param("userId") Long userId, @Param("category") BookCategory category);
     
     // 카테고리별 정렬된 조회 - 저자명 기준 오름차순
-    @Query("SELECT ub FROM UserShelfBook ub JOIN ub.book b WHERE ub.user.id = :userId AND ub.category = :category ORDER BY b.author ASC")
+    @Query("SELECT ub FROM UserShelfBook ub JOIN FETCH ub.book b WHERE ub.user.id = :userId AND ub.category = :category ORDER BY b.author ASC")
     List<UserShelfBook> findByUserIdAndCategoryOrderByAuthorAsc(@Param("userId") Long userId, @Param("category") BookCategory category);
     
     // 카테고리별 정렬된 조회 - 출판사명 기준 오름차순
-    @Query("SELECT ub FROM UserShelfBook ub JOIN ub.book b WHERE ub.user.id = :userId AND ub.category = :category ORDER BY b.publisher ASC")
+    @Query("SELECT ub FROM UserShelfBook ub JOIN FETCH ub.book b WHERE ub.user.id = :userId AND ub.category = :category ORDER BY b.publisher ASC")
     List<UserShelfBook> findByUserIdAndCategoryOrderByPublisherAsc(@Param("userId") Long userId, @Param("category") BookCategory category);
     
     // 카테고리별 정렬된 조회 - 메인 장르 기준 오름차순
-    @Query("SELECT ub FROM UserShelfBook ub JOIN ub.book b WHERE ub.user.id = :userId AND ub.category = :category ORDER BY b.mainGenre ASC")
+    @Query("SELECT ub FROM UserShelfBook ub JOIN FETCH ub.book b WHERE ub.user.id = :userId AND ub.category = :category ORDER BY b.mainGenre ASC")
     List<UserShelfBook> findByUserIdAndCategoryOrderByGenreAsc(@Param("userId") Long userId, @Param("category") BookCategory category);
 }
 

@@ -39,7 +39,7 @@ public interface MemoMapper {
     @Mapping(target = "userShelfBook", expression = "java(userShelfBook)")
     @Mapping(target = "pageNumber", source = "request.pageNumber")
     @Mapping(target = "content", source = "request.content")
-    @Mapping(target = "tags", expression = "java(processTags(request.getTags(), tagRepository))")
+    @Mapping(target = "tags", expression = "java(processTags(request.getTags(), request.getTagCategory(), tagRepository))")
     @Mapping(target = "memoStartTime", source = "request.memoStartTime")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
@@ -61,7 +61,7 @@ public interface MemoMapper {
     @Mapping(target = "userShelfBook", ignore = true)
     @Mapping(target = "pageNumber", ignore = true)  // 수정 불가
     @Mapping(target = "content", source = "request.content")
-    @Mapping(target = "tags", expression = "java(processTags(request.getTags(), tagRepository))")
+    @Mapping(target = "tags", expression = "java(processTags(request.getTags(), request.getTagCategory(), tagRepository))")
     @Mapping(target = "memoStartTime", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
@@ -136,7 +136,7 @@ public interface MemoMapper {
      * 태그 코드 리스트를 Tag 엔티티 리스트로 변환
      * 
      * 태그 자동 연결 규칙:
-     * - 태그 미선택 시 '기타' 태그 자동 연결
+     * - 태그 미선택 시 '기타' 태그 자동 연결 (현재 선택된 대분류에 맞는 etc 태그 선택)
      * - 허용된 태그 코드만 연결 (카탈로그 검증)
      * - 활성화된 태그만 연결
      * 
@@ -145,11 +145,25 @@ public interface MemoMapper {
      */
     default List<com.readingtracker.dbms.entity.Tag> processTags(
             List<String> tagCodes,
+            String tagCategory,
             @Context com.readingtracker.dbms.repository.TagRepository tagRepository) {
         if (tagCodes == null || tagCodes.isEmpty()) {
             // 태그 미선택 시 '기타' 태그 자동 연결
-            return List.of(tagRepository.findByCode("etc")
-                .orElseThrow(() -> new IllegalArgumentException("'기타' 태그가 카탈로그에 존재하지 않습니다.")));
+            // 현재 선택된 대분류에 맞는 etc 태그 선택 (기본값: TYPE)
+            final com.readingtracker.dbms.entity.TagCategory finalCategory;
+            if (tagCategory != null && "TOPIC".equalsIgnoreCase(tagCategory)) {
+                finalCategory = com.readingtracker.dbms.entity.TagCategory.TOPIC;
+            } else {
+                finalCategory = com.readingtracker.dbms.entity.TagCategory.TYPE;
+            }
+            
+            // 대분류와 code로 etc 태그 조회
+            return tagRepository.findByCategoryAndIsActiveTrueOrderBySortOrderAsc(finalCategory).stream()
+                .filter(tag -> "etc".equals(tag.getCode()))
+                .findFirst()
+                .map(List::of)
+                .orElseThrow(() -> new IllegalArgumentException(
+                    String.format("'%s' 대분류의 '기타' 태그가 카탈로그에 존재하지 않습니다.", finalCategory)));
         }
         
         List<com.readingtracker.dbms.entity.Tag> tags = new ArrayList<>();

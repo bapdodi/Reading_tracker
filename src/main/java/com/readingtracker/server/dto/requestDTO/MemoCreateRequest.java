@@ -19,6 +19,8 @@ public class MemoCreateRequest {
     
     private List<String> tags;  // 메모 분류 태그 리스트 (하나 이상의 태그 설정 가능)
     
+    private String tagCategory;  // 태그 대분류 (TYPE, TOPIC) - 태그 미선택 시 etc 태그 선택에 사용
+    
     @NotNull(message = "메모 시작 시간은 필수입니다.")
     private LocalDateTime memoStartTime;
     
@@ -34,6 +36,9 @@ public class MemoCreateRequest {
     
     public List<String> getTags() { return tags; }
     public void setTags(List<String> tags) { this.tags = tags; }
+    
+    public String getTagCategory() { return tagCategory; }
+    public void setTagCategory(String tagCategory) { this.tagCategory = tagCategory; }
     
     public LocalDateTime getMemoStartTime() { return memoStartTime; }
     public void setMemoStartTime(LocalDateTime memoStartTime) { this.memoStartTime = memoStartTime; }

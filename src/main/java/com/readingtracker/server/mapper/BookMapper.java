@@ -16,14 +16,11 @@ import com.readingtracker.server.dto.responseDTO.MyShelfResponse;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
 
 import java.util.List;
 
 @Mapper(componentModel = "spring")
 public interface BookMapper {
-    
-    BookMapper INSTANCE = Mappers.getMapper(BookMapper.class);
     
     /**
      * BookAdditionRequest → Book Entity 변환
@@ -58,16 +55,16 @@ public interface BookMapper {
      * UserShelfBook → BookAdditionResponse 변환
      */
     @Mapping(target = "message", constant = "책이 내 서재에 추가되었습니다.")
-    @Mapping(target = "bookId", source = "userBook.bookId")
-    @Mapping(target = "title", source = "userBook.book.title")
-    @Mapping(target = "category", source = "userBook.category")
+    @Mapping(target = "bookId", source = "book.id")
+    @Mapping(target = "title", source = "book.title")
+    @Mapping(target = "category", source = "category")
     BookAdditionResponse toBookAdditionResponse(UserShelfBook userBook);
     
     /**
      * UserShelfBook → MyShelfResponse.ShelfBook 변환
      */
     @Mapping(target = "userBookId", source = "id")
-    @Mapping(target = "bookId", source = "bookId")
+    @Mapping(target = "bookId", source = "book.id")
     @Mapping(target = "isbn", source = "book.isbn")
     @Mapping(target = "title", source = "book.title")
     @Mapping(target = "author", source = "book.author")
@@ -78,20 +75,26 @@ public interface BookMapper {
     @Mapping(target = "mainGenre", source = "book.mainGenre")
     @Mapping(target = "pubDate", source = "book.pubDate")
     @Mapping(target = "category", source = "category")
+    @Mapping(target = "expectation", source = "expectation")
     @Mapping(target = "lastReadPage", source = "readingProgress")
     @Mapping(target = "lastReadAt", source = "readingStartDate")
+    @Mapping(target = "readingFinishedDate", source = "readingFinishedDate")
+    @Mapping(target = "purchaseType", source = "purchaseType")
     @Mapping(target = "addedAt", source = "createdAt")
+    @Mapping(target = "rating", source = "rating")
+    @Mapping(target = "review", source = "review")
     MyShelfResponse.ShelfBook toShelfBook(UserShelfBook userBook);
     
     /**
      * List<UserShelfBook> → MyShelfResponse 변환
      */
     default MyShelfResponse toMyShelfResponse(List<UserShelfBook> userBooks) {
-        if (userBooks == null) {
-            return new MyShelfResponse();
+        if (userBooks == null || userBooks.isEmpty()) {
+            return new MyShelfResponse(List.of(), 0);
         }
         
         List<MyShelfResponse.ShelfBook> shelfBooks = userBooks.stream()
+            .filter(ub -> ub != null && ub.getBook() != null) // null 체크 추가
             .map(this::toShelfBook)
             .toList();
         

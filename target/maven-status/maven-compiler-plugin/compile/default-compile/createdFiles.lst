@@ -18,10 +18,12 @@ com\readingtracker\server\dto\responseDTO\LoginResponse$UserInfo.class
 com\readingtracker\server\mapper\AladinBookMapper.class
 com\readingtracker\server\dto\responseDTO\RefreshTokenResponse.class
 com\readingtracker\server\dto\requestDTO\AccountVerificationRequest.class
+com\readingtracker\server\config\TimeZoneConfig.class
 com\readingtracker\dbms\repository\MemoRepository.class
 com\readingtracker\server\service\JwtService$TokenResult.class
 com\readingtracker\dbms\entity\User$Role.class
 com\readingtracker\server\dto\responseDTO\BookResponse.class
+com\readingtracker\server\config\AsyncConfig.class
 com\readingtracker\server\common\exception\GlobalExceptionHandler.class
 com\readingtracker\dbms\repository\UserShelfBookRepository.class
 com\readingtracker\server\dto\requestDTO\LoginRequest.class

@@ -4,12 +4,9 @@ import com.readingtracker.dbms.entity.User;
 import com.readingtracker.server.controller.v1.UserController;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
 
 @Mapper(componentModel = "spring")
 public interface UserMapper {
-    
-    UserMapper INSTANCE = Mappers.getMapper(UserMapper.class);
     
     /**
      * User Entity → UserProfileResponse 변환

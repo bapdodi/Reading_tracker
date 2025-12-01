@@ -8,6 +8,8 @@ import com.readingtracker.dbms.repository.RefreshTokenRepository;
 import com.readingtracker.dbms.repository.UserDeviceRepository;
 import com.readingtracker.server.common.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,12 @@ public class JwtService {
     
     @Autowired
     private JwtConfig jwtConfig;
+    
+    // 자기 자신 주입 (비동기 메서드 호출을 위해 필요)
+    // @Lazy를 사용하여 순환 참조 방지
+    @Autowired
+    @Lazy
+    private JwtService self;
     
     /**
      * 액세스 토큰과 리프레시 토큰 생성
@@ -48,13 +56,15 @@ public class JwtService {
         // 리프레시 토큰 생성
         String refreshToken = jwtUtil.generateRefreshToken(user, actualDeviceId);
         
-        // 디바이스 정보 저장/업데이트
-        UserDevice device = saveOrUpdateDevice(user, actualDeviceId, actualDeviceName, actualPlatform);
+        // 디바이스 정보 저장/업데이트 (비동기 처리)
+        // 로그인 응답 시간 단축을 위해 비동기로 처리
+        self.saveOrUpdateDeviceAsync(user, actualDeviceId, actualDeviceName, actualPlatform);
         
-        // 리프레시 토큰 저장
-        saveRefreshToken(user, actualDeviceId, refreshToken);
+        // 리프레시 토큰 저장 (비동기 처리)
+        self.saveRefreshTokenAsync(user, actualDeviceId, refreshToken);
         
-        return new TokenResult(accessToken, refreshToken, device);
+        // 디바이스 정보는 null로 반환 (비동기 처리 중이므로)
+        return new TokenResult(accessToken, refreshToken, null);
     }
     
     /**
@@ -145,11 +155,41 @@ public class JwtService {
         return userDeviceRepository.save(device);
     }
     
+    /**
+     * 디바이스 정보 저장/업데이트 (비동기 처리)
+     * 로그인 응답 시간을 단축하기 위해 비동기로 처리
+     */
+    @Async("taskExecutor")
+    @Transactional
+    public void saveOrUpdateDeviceAsync(User user, String deviceId, String deviceName, String platform) {
+        try {
+            saveOrUpdateDevice(user, deviceId, deviceName, platform);
+        } catch (Exception e) {
+            // 비동기 처리 중 에러 발생 시 로깅만 수행 (로그인 응답에는 영향 없음)
+            System.err.println("[JwtService] 비동기 디바이스 저장 실패: " + e.getMessage());
+        }
+    }
+    
     private void saveRefreshToken(User user, String deviceId, String refreshToken) {
         LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(jwtConfig.getRefreshTokenExpiration() / 1000);
         
         RefreshToken token = new RefreshToken(user, deviceId, refreshToken, expiresAt);
         refreshTokenRepository.save(token);
+    }
+    
+    /**
+     * 리프레시 토큰 저장 (비동기 처리)
+     * 로그인 응답 시간을 단축하기 위해 비동기로 처리
+     */
+    @Async("taskExecutor")
+    @Transactional
+    public void saveRefreshTokenAsync(User user, String deviceId, String refreshToken) {
+        try {
+            saveRefreshToken(user, deviceId, refreshToken);
+        } catch (Exception e) {
+            // 비동기 처리 중 에러 발생 시 로깅만 수행 (로그인 응답에는 영향 없음)
+            System.err.println("[JwtService] 비동기 리프레시 토큰 저장 실패: " + e.getMessage());
+        }
     }
     
     /**

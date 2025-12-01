@@ -475,18 +475,22 @@ public class MemoService {
      * - 마지막으로 읽은 페이지 수를 기록하고 독서 진행률을 업데이트합니다.
      * - 독서 진행률에 따라 카테고리가 자동으로 변경됩니다.
      * - 오늘의 흐름에서 해당 책의 메모가 섹션으로 구분되어 표시됩니다.
+     * - ToRead 카테고리 책의 경우 독서 시작일을 첫 메모 작성 날짜로 자동 설정
+     * - Finished 카테고리로 변경될 경우 독서 종료일, 평점, 후기를 설정
      * 
      * 상세 기능 설명은 섹션 1.2 주요 요구사항의 "책 덮기" 항목 및 섹션 15를 참조하세요.
      * 
      * 참고: 노션 문서 (https://www.notion.so/29d4a8c85009803aa90df9f6bdbf3568)
      */
-    public void closeBook(User user, Long userBookId, Integer lastReadPage) {
+    public void closeBook(User user, Long userBookId, com.readingtracker.server.dto.requestDTO.CloseBookRequest request) {
         UserShelfBook userShelfBook = userShelfBookRepository.findById(userBookId)
             .orElseThrow(() -> new IllegalArgumentException("책을 찾을 수 없습니다."));
         
         if (!userShelfBook.getUserId().equals(user.getId())) {
             throw new IllegalArgumentException("권한이 없습니다.");
         }
+        
+        Integer lastReadPage = request.getLastReadPage();
         
         // 2. 페이지 수 유효성 검증
         if (lastReadPage == null || lastReadPage < 1) {
@@ -514,9 +518,9 @@ public class MemoService {
         // 진행률 1~80%: Reading
         // 진행률 81~99%: AlmostFinished
         // 진행률 100%: Finished
+        BookCategory newCategory = null;
         if (totalPages != null && totalPages > 0) {
             double progressPercentage = (lastReadPage * 100.0) / totalPages;
-            BookCategory newCategory;
             
             if (progressPercentage == 0) {
                 newCategory = BookCategory.ToRead;
@@ -530,6 +534,42 @@ public class MemoService {
             
             // 카테고리 변경 (명시적 변경 플래그는 유지)
             userShelfBook.setCategory(newCategory);
+        }
+        
+        // 5. ToRead 카테고리 책의 경우 독서 시작일 자동 설정
+        if (userShelfBook.getCategory() == BookCategory.ToRead) {
+            // ToRead 카테고리에서 다른 카테고리로 변경되는 경우
+            // 첫 메모 작성 날짜를 독서 시작일로 설정
+            List<Memo> memos = memoRepository.findByUserIdAndUserShelfBookIdOrderByMemoStartTimeAsc(
+                user.getId(), userBookId
+            );
+            
+            if (!memos.isEmpty()) {
+                Memo firstMemo = memos.get(0);
+                LocalDate firstMemoDate = firstMemo.getMemoStartTime().toLocalDate();
+                userShelfBook.setReadingStartDate(firstMemoDate);
+            }
+            
+            // 구매/대여 항목은 null로 설정 (프론트엔드에서 '선택하세요'로 표시)
+            userShelfBook.setPurchaseType(null);
+        }
+        
+        // 6. Finished 카테고리로 변경될 경우 추가 필드 설정
+        if (newCategory == BookCategory.Finished) {
+            // 독서 종료일 검증 및 설정
+            if (request.getReadingFinishedDate() == null) {
+                throw new IllegalArgumentException("독서 종료일은 필수 입력 항목입니다.");
+            }
+            userShelfBook.setReadingFinishedDate(request.getReadingFinishedDate());
+            
+            // 평점 검증 및 설정
+            if (request.getRating() == null || request.getRating() < 1 || request.getRating() > 5) {
+                throw new IllegalArgumentException("평점은 1 이상 5 이하여야 합니다.");
+            }
+            userShelfBook.setRating(request.getRating());
+            
+            // 후기 설정 (선택사항)
+            userShelfBook.setReview(request.getReview());
         }
         
         userShelfBookRepository.save(userShelfBook);

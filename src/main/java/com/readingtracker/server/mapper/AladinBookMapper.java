@@ -4,7 +4,6 @@ import com.readingtracker.dbms.entity.AladinBook;
 import com.readingtracker.server.dto.responseDTO.AladinBookResponseDTO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -17,8 +16,6 @@ import java.util.Map;
  */
 @Mapper(componentModel = "spring")
 public interface AladinBookMapper {
-    
-    AladinBookMapper INSTANCE = Mappers.getMapper(AladinBookMapper.class);
     
     /**
      * AladinBookResponseDTO → List<AladinBook> 변환

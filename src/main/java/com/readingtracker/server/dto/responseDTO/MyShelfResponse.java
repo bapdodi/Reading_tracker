@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.readingtracker.server.common.constant.BookCategory;
+import com.readingtracker.server.common.constant.PurchaseType;
 
 /**
  * 내 서재 조회 응답 DTO
@@ -47,9 +48,14 @@ public class MyShelfResponse {
         private String mainGenre;
         private LocalDate pubDate;
         private BookCategory category;
+        private String expectation;
         private Integer lastReadPage;
         private LocalDate lastReadAt;
+        private LocalDate readingFinishedDate;
+        private PurchaseType purchaseType;
         private LocalDateTime addedAt;
+        private Integer rating;
+        private String review;
         
         // 기본 생성자
         public ShelfBook() {}
@@ -67,9 +73,14 @@ public class MyShelfResponse {
         public String getMainGenre() { return mainGenre; }
         public LocalDate getPubDate() { return pubDate; }
         public BookCategory getCategory() { return category; }
+        public String getExpectation() { return expectation; }
         public Integer getLastReadPage() { return lastReadPage; }
         public LocalDate getLastReadAt() { return lastReadAt; }
+        public LocalDate getReadingFinishedDate() { return readingFinishedDate; }
+        public PurchaseType getPurchaseType() { return purchaseType; }
         public LocalDateTime getAddedAt() { return addedAt; }
+        public Integer getRating() { return rating; }
+        public String getReview() { return review; }
         
         // Setters
         public void setUserBookId(Long userBookId) { this.userBookId = userBookId; }
@@ -84,8 +95,13 @@ public class MyShelfResponse {
         public void setMainGenre(String mainGenre) { this.mainGenre = mainGenre; }
         public void setPubDate(LocalDate pubDate) { this.pubDate = pubDate; }
         public void setCategory(BookCategory category) { this.category = category; }
+        public void setExpectation(String expectation) { this.expectation = expectation; }
         public void setLastReadPage(Integer lastReadPage) { this.lastReadPage = lastReadPage; }
         public void setLastReadAt(LocalDate lastReadAt) { this.lastReadAt = lastReadAt; }
+        public void setReadingFinishedDate(LocalDate readingFinishedDate) { this.readingFinishedDate = readingFinishedDate; }
+        public void setPurchaseType(PurchaseType purchaseType) { this.purchaseType = purchaseType; }
         public void setAddedAt(LocalDateTime addedAt) { this.addedAt = addedAt; }
+        public void setRating(Integer rating) { this.rating = rating; }
+        public void setReview(String review) { this.review = review; }
     }
 }

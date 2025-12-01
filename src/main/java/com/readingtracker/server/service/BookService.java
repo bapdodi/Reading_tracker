@@ -352,12 +352,17 @@ public class BookService {
             return;
         }
         
+        // Finished 카테고리에서는 다른 카테고리로 자동 변경하지 않음
+        BookCategory currentCategory = userBook.getCategory();
+        if (currentCategory == BookCategory.Finished) {
+            return;
+        }
+        
         // 진행률 계산
         Integer progressPercentage = calculateProgressPercentage(readingProgress, totalPages);
         
         // 진행률 기반 카테고리 결정
         BookCategory newCategory = determineCategoryByProgress(progressPercentage);
-        BookCategory currentCategory = userBook.getCategory();
         
         // 명시적 카테고리 변경 플래그 확인
         if (userBook.isCategoryManuallySet() != null && userBook.isCategoryManuallySet()) {
@@ -369,7 +374,20 @@ public class BookService {
                 return;  // Reading 상태 유지
             }
             
-            // 2. 진행률이 70% 이상 99% 이하면 AlmostFinished로 자동 변경 허용
+            // 2. 진행률이 1% 이상 69% 이하면 Reading으로 자동 변경 허용
+            // (AlmostFinished에서 진행률이 낮아진 경우 Reading으로 변경)
+            if (progressPercentage >= 1 && progressPercentage <= 69) {
+                if (newCategory == BookCategory.Reading) {
+                    // AlmostFinished나 Reading에서 진행률이 낮아져서 Reading으로 변경되는 경우
+                    if (currentCategory == BookCategory.AlmostFinished || currentCategory == BookCategory.Reading) {
+                        userBook.setCategory(newCategory);
+                        // 플래그는 유지 (명시적 변경 기록 보존)
+                        return;
+                    }
+                }
+            }
+            
+            // 3. 진행률이 70% 이상 99% 이하면 AlmostFinished로 자동 변경 허용
             if (progressPercentage >= 70 && progressPercentage < 100) {
                 if (newCategory == BookCategory.AlmostFinished && 
                     currentCategory != BookCategory.AlmostFinished) {
@@ -379,8 +397,9 @@ public class BookService {
                 }
             }
             
-            // 3. 진행률이 100%면 Finished로 자동 변경 허용
-            if (progressPercentage == 100) {
+            // 4. 현재 읽은 페이지 수가 전체 페이지 수와 정확히 같을 때만 Finished로 자동 변경 허용
+            // (진행률이 100%이고, readingProgress == totalPages인 경우만)
+            if (readingProgress.equals(totalPages)) {
                 if (newCategory == BookCategory.Finished && 
                     currentCategory != BookCategory.Finished) {
                     userBook.setCategory(newCategory);
@@ -389,15 +408,24 @@ public class BookService {
                 }
             }
             
-            // 4. 그 외의 경우는 자동 변경하지 않음 (명시적 설정 우선)
+            // 5. 그 외의 경우는 자동 변경하지 않음 (명시적 설정 우선)
             return;
         }
         
         // 플래그가 false이거나 null인 경우 (자동으로 설정된 카테고리)
-        // 자유롭게 자동 변경 허용
+        // 자유롭게 자동 변경 허용 (단, Finished로 변경은 현재 읽은 페이지 수가 전체 페이지 수와 정확히 같을 때만)
         if (currentCategory != newCategory) {
-            userBook.setCategory(newCategory);
-            // 자동 변경이므로 플래그는 false 유지
+            // Finished로 변경하려면 현재 읽은 페이지 수가 전체 페이지 수와 정확히 같아야 함
+            if (newCategory == BookCategory.Finished) {
+                if (readingProgress.equals(totalPages)) {
+                    userBook.setCategory(newCategory);
+                    // 자동 변경이므로 플래그는 false 유지
+                }
+            } else {
+                // Finished가 아닌 다른 카테고리로 변경은 자유롭게 허용
+                userBook.setCategory(newCategory);
+                // 자동 변경이므로 플래그는 false 유지
+            }
         }
     }
     

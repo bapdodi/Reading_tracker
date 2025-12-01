@@ -9,12 +9,9 @@ import com.readingtracker.server.dto.responseDTO.PasswordResetResponse;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
 
 @Mapper(componentModel = "spring")
 public interface AuthMapper {
-    
-    AuthMapper INSTANCE = Mappers.getMapper(AuthMapper.class);
     
     /**
      * RegistrationRequest → User Entity 변환

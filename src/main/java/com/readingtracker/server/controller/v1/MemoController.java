@@ -345,7 +345,7 @@ public class MemoController extends BaseV1Controller {
             @Valid @RequestBody CloseBookRequest request) {
         
         User user = getCurrentUser();
-        memoService.closeBook(user, userBookId, request.getLastReadPage());
+        memoService.closeBook(user, userBookId, request);
         return ApiResponse.success("독서 활동이 종료되었습니다.");
     }
     
