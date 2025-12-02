@@ -40,7 +40,8 @@ INSERT INTO tags (category, code, sort_order, is_active) VALUES
 ('TOPIC', 'etc', 99, TRUE);
 
 -- 참고:
--- 1. 각 태그의 code는 UNIQUE 제약이 있으므로 중복될 수 없습니다.
+-- 1. 각 태그의 (category, code) 조합은 UNIQUE 제약이 있으므로 같은 카테고리 내에서 code는 중복될 수 없습니다.
+--    단, 다른 카테고리에서는 같은 code를 사용할 수 있습니다 (예: TYPE과 TOPIC 모두 'etc' 사용 가능).
 -- 2. sort_order는 같은 대분류 내에서 정렬 순서를 결정합니다 (작을수록 우선순위 높음).
 -- 3. is_active는 태그 활성화 상태를 나타냅니다 (TRUE: 활성, FALSE: 비활성).
 -- 4. 태그 코드는 소문자로 정규화되어 저장되며, 하이픈(-)을 사용하여 구분합니다.
