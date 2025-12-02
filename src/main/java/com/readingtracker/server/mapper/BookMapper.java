@@ -2,7 +2,6 @@ package com.readingtracker.server.mapper;
 
 import com.readingtracker.dbms.entity.AladinBook;
 import com.readingtracker.dbms.entity.Book;
-import com.readingtracker.dbms.entity.User;
 import com.readingtracker.dbms.entity.UserShelfBook;
 import com.readingtracker.server.common.constant.BookSearchFilter;
 import com.readingtracker.server.dto.requestDTO.BookAdditionRequest;
@@ -23,33 +22,26 @@ import java.util.List;
 public interface BookMapper {
     
     /**
-     * BookAdditionRequest → Book Entity 변환
+     * BookAdditionRequest → UserShelfBook Entity 변환
+     * 문서: MAPSTRUCT_ARCHITECTURE_DESIGN.md 준수
+     * - user는 Controller에서 설정
+     * - book은 Mapper 내부에서 생성
      */
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "userBooks", ignore = true)
-    Book toBookEntity(BookAdditionRequest request);
-    
-    /**
-     * BookAdditionRequest + User → UserShelfBook Entity 변환
-     * 주의: Book은 별도로 생성되어야 함
-     */
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "user", source = "user")
-    @Mapping(target = "book", ignore = true) // Service에서 별도 설정 필요
-    @Mapping(target = "category", source = "request.category")
+    @Mapping(target = "user", ignore = true)  // Controller에서 설정
+    @Mapping(target = "book", expression = "java(createBookFromRequest(request))")
+    @Mapping(target = "category", source = "category")
     @Mapping(target = "categoryManuallySet", constant = "true")
-    @Mapping(target = "expectation", source = "request.expectation")
-    @Mapping(target = "readingStartDate", source = "request.readingStartDate")
-    @Mapping(target = "readingProgress", source = "request.readingProgress")
-    @Mapping(target = "purchaseType", source = "request.purchaseType")
-    @Mapping(target = "readingFinishedDate", source = "request.readingFinishedDate")
-    @Mapping(target = "rating", source = "request.rating")
-    @Mapping(target = "review", source = "request.review")
+    @Mapping(target = "expectation", source = "expectation")
+    @Mapping(target = "readingStartDate", source = "readingStartDate")
+    @Mapping(target = "readingProgress", source = "readingProgress")
+    @Mapping(target = "purchaseType", source = "purchaseType")
+    @Mapping(target = "readingFinishedDate", source = "readingFinishedDate")
+    @Mapping(target = "rating", source = "rating")
+    @Mapping(target = "review", source = "review")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    UserShelfBook toUserShelfBookEntity(BookAdditionRequest request, User user);
+    UserShelfBook toUserShelfBookEntity(BookAdditionRequest request);
     
     /**
      * UserShelfBook → BookAdditionResponse 변환
@@ -175,6 +167,28 @@ public interface BookMapper {
         if (request.getReview() != null) {
             userBook.setReview(request.getReview());
         }
+    }
+    
+    // ========== 내부 헬퍼 메서드 ==========
+    
+    /**
+     * BookAdditionRequest → Book Entity 변환
+     * 문서: MAPSTRUCT_ARCHITECTURE_DESIGN.md 준수
+     * Mapper 내부에서 Book을 생성하기 위한 헬퍼 메서드
+     */
+    default Book createBookFromRequest(BookAdditionRequest request) {
+        Book book = new Book(
+            request.getIsbn(),
+            request.getTitle(),
+            request.getAuthor(),
+            request.getPublisher()
+        );
+        book.setDescription(request.getDescription());
+        book.setCoverUrl(request.getCoverUrl());
+        book.setTotalPages(request.getTotalPages());
+        book.setMainGenre(request.getMainGenre());
+        book.setPubDate(request.getPubDate());
+        return book;
     }
     
     /**

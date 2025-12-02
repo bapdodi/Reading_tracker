@@ -263,17 +263,7 @@ Spring Boot Controller → Service → Repository → MySQL
 
 **해결 방법:**
 
-**Option 1: 기본 방식 (간단)**
-```javascript
-// navigator.onLine만 사용
-// 빠르고 가볍지만 완벽하지 않을 수 있음
-window.addEventListener('online', () => {
-    // 네트워크 복구 감지
-    onNetworkOnline();
-});
-```
-
-**Option 2: 헬스체크 추가 (권장)** ⭐
+**서버 헬스체크를 통한 네트워크 감지 (권장)** ⭐
 ```javascript
 // utils/network-monitor.js (개선된 버전)
 class NetworkMonitor {
@@ -476,15 +466,7 @@ setInterval(async () => {
 }, 30000); // 30초마다 확인
 ```
 
-**2. 수동 동기화 버튼 제공**
-```javascript
-// 사용자가 수동으로 동기화 시도 가능
-function manualSync() {
-    offlineMemoService.syncPendingMemos();
-}
-```
-
-**3. 동기화 실패 시 자동 재시도**
+**2. 동기화 실패 시 자동 재시도**
 ```javascript
 // 이미 구현됨: Exponential Backoff 재시도
 // 5초, 10초, 20초 후 자동 재시도
@@ -498,21 +480,14 @@ function manualSync() {
 
 #### 1. 로컬 저장소 선택
 
-**Option 1: IndexedDB (추천)** ⭐
+**IndexedDB 사용** ⭐
 - ✅ 대용량 데이터 저장 가능
 - ✅ 비동기 API (논블로킹)
 - ✅ 구조화된 데이터 저장
 - ✅ 복잡한 쿼리 지원
 - ⚠️ 구현 복잡도 높음
 
-**Option 2: LocalStorage**
-- ✅ 간단한 API
-- ✅ 동기 API
-- ❌ 용량 제한 (~5-10MB)
-- ❌ 구조화된 데이터 저장 제한
-- ⚠️ 대량 데이터 처리 시 성능 저하
-
-**결정**: **IndexedDB 사용** (용량 제한 없고, 메모가 많아질 수 있으므로)
+**선택 이유**: 용량 제한 없고, 메모가 많아질 수 있으므로 IndexedDB를 사용합니다.
 
 #### 2. 동기화 큐 관리
 
@@ -1246,7 +1221,7 @@ function renderMemo(memo) {
 
 2. **에러 피드백**
    - 동기화 실패 시 사용자 알림
-   - 수동 재시도 버튼
+   - 자동 재시도 메커니즘 (Exponential Backoff)
 
 ---
 
@@ -1302,36 +1277,7 @@ function renderMemo(memo) {
    - `type`: "CREATE" 확인
    - `localMemoId`: 메모의 localId와 일치하는지 확인
 
-#### 방법 2: Clumsy를 이용한 네트워크 차단
-
-**준비:**
-1. Clumsy 다운로드 및 설치: https://jagt.github.io/clumsy/
-2. 관리자 권한으로 실행
-
-**테스트 단계:**
-
-1. **Clumsy 설정**
-   ```
-   Filter: outbound and tcp.DstPort == 8080
-   Drop: 100%
-   Enable 체크
-   ```
-
-2. **메모 작성**
-   - 웹사이트에서 메모 작성
-   - API 호출이 차단되어 오프라인으로 처리됨
-
-3. **확인 사항**
-   - 메모가 로컬에 저장되는지 확인
-   - UI에 즉시 표시되는지 확인
-
-4. **네트워크 복구 시뮬레이션**
-   ```
-   Clumsy에서 Drop: 0%로 변경
-   또는 Enable 체크 해제
-   ```
-
-#### 방법 3: Windows Firewall을 이용한 포트 차단
+#### 방법 2: Windows Firewall을 이용한 포트 차단
 
 ```powershell
 # PowerShell (관리자 권한 필요)
@@ -1442,13 +1388,12 @@ Remove-NetFirewallRule -DisplayName "Block 8080"
 
 **테스트 준비:**
 1. Spring Boot 서버 실행 중
-2. Clumsy 설정: `Drop: 0%` (정상 통신)
 
 **테스트 단계:**
 
 1. **서버 중지 또는 에러 응답 시뮬레이션**
 
-   **방법 A: 서버 중지**
+   **서버 중지**
    ```powershell
    # 서버 프로세스 찾기
    netstat -ano | findstr :8080
@@ -1457,22 +1402,12 @@ Remove-NetFirewallRule -DisplayName "Block 8080"
    taskkill /PID <PID> /F
    ```
 
-   **방법 B: Clumsy로 네트워크 차단**
-   ```
-   Filter: outbound and tcp.DstPort == 8080
-   Drop: 100%
-   Enable 체크
-   ```
-
 2. **메모 작성**
    - 오프라인 상태에서 메모 작성
    - 로컬 저장 확인
 
 3. **네트워크 복구 (일시적)**
-   ```
-   Clumsy: Drop: 0%
-   서버 재시작 (방법 A 사용 시)
-   ```
+   - 서버 재시작
 
 4. **동기화 실패 확인**
    - 동기화 상태: "🔄 동기화 중" → "❌ 동기화 실패"
@@ -1497,8 +1432,7 @@ Remove-NetFirewallRule -DisplayName "Block 8080"
 7. **최종 성공 시나리오**
    - 서버 정상화
    - 네트워크 정상화
-   - 수동 재시도 버튼 클릭 (구현 시)
-   - 또는 자동 재시도 확인
+   - 자동 재시도 확인
 
 #### 시나리오 2: 간헐적 네트워크 장애
 
@@ -1990,383 +1924,7 @@ console.log('ℹ️ [Info]', ...);        // 기본색
 
 ---
 
-#### 모니터링 방법 2: 자체 모니터링 대시보드 구현 (무료)
-
-**장점:**
-- ✅ 사용자 정의 가능
-- ✅ 실시간 상태 표시
-- ✅ 추가 소프트웨어 불필요
-
-**구현 예제:**
-
-##### 모니터링 서비스 구현
-
-```javascript
-// services/monitoring-service.js
-class MonitoringService {
-    constructor() {
-        this.events = [];
-        this.maxEvents = 1000; // 최대 이벤트 수
-        this.metrics = {
-            networkStatus: navigator.onLine,
-            syncStats: {
-                pending: 0,
-                syncing: 0,
-                synced: 0,
-                failed: 0
-            },
-            errorCount: 0,
-            lastSyncTime: null
-        };
-    }
-
-    /**
-     * 이벤트 기록
-     */
-    logEvent(type, data) {
-        const event = {
-            id: Date.now(),
-            timestamp: new Date().toISOString(),
-            type, // 'network', 'sync', 'error'
-            data
-        };
-
-        this.events.push(event);
-
-        // 최대 이벤트 수 제한
-        if (this.events.length > this.maxEvents) {
-            this.events.shift();
-        }
-
-        // 메트릭 업데이트
-        this.updateMetrics(type, data);
-    }
-
-    /**
-     * 네트워크 상태 변경 기록
-     */
-    logNetworkChange(isOnline) {
-        this.logEvent('network', {
-            status: isOnline ? 'online' : 'offline',
-            timestamp: Date.now()
-        });
-        this.metrics.networkStatus = isOnline;
-    }
-
-    /**
-     * 동기화 이벤트 기록
-     */
-    logSyncEvent(localId, status, error = null) {
-        this.logEvent('sync', {
-            localId,
-            status, // 'start', 'success', 'failed'
-            error,
-            timestamp: Date.now()
-        });
-
-        if (status === 'success') {
-            this.metrics.lastSyncTime = Date.now();
-        } else if (status === 'failed') {
-            this.metrics.errorCount++;
-        }
-    }
-
-    /**
-     * 에러 기록
-     */
-    logError(error, context) {
-        this.logEvent('error', {
-            message: error.message,
-            stack: error.stack,
-            context,
-            timestamp: Date.now()
-        });
-        this.metrics.errorCount++;
-    }
-
-    /**
-     * 메트릭 업데이트
-     */
-    updateMetrics(type, data) {
-        if (type === 'sync' && data.status) {
-            // syncStats 업데이트는 별도 메서드에서 처리
-        }
-    }
-
-    /**
-     * 동기화 통계 업데이트
-     */
-    async updateSyncStats() {
-        const memos = await dbManager.getAllMemos();
-        this.metrics.syncStats = {
-            pending: memos.filter(m => m.syncStatus === 'pending').length,
-            syncing: memos.filter(m => m.syncStatus === 'syncing').length,
-            synced: memos.filter(m => m.syncStatus === 'synced').length,
-            failed: memos.filter(m => m.syncStatus === 'failed').length
-        };
-    }
-
-    /**
-     * 모니터링 데이터 조회
-     */
-    getMetrics() {
-        return {
-            ...this.metrics,
-            eventCount: this.events.length,
-            recentEvents: this.events.slice(-10) // 최근 10개 이벤트
-        };
-    }
-
-    /**
-     * 이벤트 로그 조회
-     */
-    getEvents(filter = {}) {
-        let filtered = [...this.events];
-
-        if (filter.type) {
-            filtered = filtered.filter(e => e.type === filter.type);
-        }
-
-        if (filter.startTime) {
-            filtered = filtered.filter(e => new Date(e.timestamp) >= filter.startTime);
-        }
-
-        if (filter.endTime) {
-            filtered = filtered.filter(e => new Date(e.timestamp) <= filter.endTime);
-        }
-
-        return filtered;
-    }
-
-    /**
-     * 에러 통계
-     */
-    getErrorStats() {
-        const errors = this.events.filter(e => e.type === 'error');
-        const errorTypes = {};
-
-        errors.forEach(error => {
-            const message = error.data.message;
-            errorTypes[message] = (errorTypes[message] || 0) + 1;
-        });
-
-        return {
-            totalErrors: errors.length,
-            errorTypes,
-            recentErrors: errors.slice(-5)
-        };
-    }
-}
-
-export const monitoringService = new MonitoringService();
-```
-
-##### 모니터링 UI 컴포넌트
-
-```javascript
-// ui/monitoring-dashboard.js
-class MonitoringDashboard {
-    constructor() {
-        this.container = null;
-        this.updateInterval = null;
-    }
-
-    /**
-     * 대시보드 초기화
-     */
-    init() {
-        // 개발 모드에서만 표시
-        if (process.env.NODE_ENV === 'production') {
-            return;
-        }
-
-        this.createDashboard();
-        this.startAutoUpdate();
-    }
-
-    /**
-     * 대시보드 HTML 생성
-     */
-    createDashboard() {
-        const dashboard = document.createElement('div');
-        dashboard.id = 'monitoring-dashboard';
-        dashboard.innerHTML = `
-            <div class="monitoring-panel">
-                <h3>📊 모니터링 대시보드</h3>
-                
-                <div class="metrics-grid">
-                    <div class="metric-card">
-                        <div class="metric-label">네트워크 상태</div>
-                        <div id="network-status" class="metric-value">-</div>
-                    </div>
-                    
-                    <div class="metric-card">
-                        <div class="metric-label">대기 중</div>
-                        <div id="sync-pending" class="metric-value">0</div>
-                    </div>
-                    
-                    <div class="metric-card">
-                        <div class="metric-label">동기화 중</div>
-                        <div id="sync-syncing" class="metric-value">0</div>
-                    </div>
-                    
-                    <div class="metric-card">
-                        <div class="metric-label">동기화 완료</div>
-                        <div id="sync-synced" class="metric-value">0</div>
-                    </div>
-                    
-                    <div class="metric-card">
-                        <div class="metric-label">동기화 실패</div>
-                        <div id="sync-failed" class="metric-value">0</div>
-                    </div>
-                    
-                    <div class="metric-card">
-                        <div class="metric-label">에러 횟수</div>
-                        <div id="error-count" class="metric-value">0</div>
-                    </div>
-                </div>
-                
-                <div class="event-log">
-                    <h4>최근 이벤트</h4>
-                    <div id="event-list"></div>
-                </div>
-            </div>
-        `;
-
-        // 스타일 추가
-        dashboard.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 400px;
-            max-height: 600px;
-            background: white;
-            border: 2px solid #007bff;
-            border-radius: 8px;
-            padding: 16px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            z-index: 10000;
-            font-size: 12px;
-            overflow-y: auto;
-        `;
-
-        document.body.appendChild(dashboard);
-        this.container = dashboard;
-    }
-
-    /**
-     * 자동 업데이트 시작
-     */
-    startAutoUpdate() {
-        this.update();
-        this.updateInterval = setInterval(() => {
-            this.update();
-        }, 2000); // 2초마다 업데이트
-    }
-
-    /**
-     * 대시보드 업데이트
-     */
-    async update() {
-        const metrics = monitoringService.getMetrics();
-        await monitoringService.updateSyncStats();
-
-        // 네트워크 상태
-        const networkStatusEl = document.getElementById('network-status');
-        if (networkStatusEl) {
-            networkStatusEl.textContent = metrics.networkStatus ? '🟢 온라인' : '🔴 오프라인';
-            networkStatusEl.style.color = metrics.networkStatus ? 'green' : 'red';
-        }
-
-        // 동기화 통계
-        const stats = monitoringService.metrics.syncStats;
-        this.updateElement('sync-pending', stats.pending);
-        this.updateElement('sync-syncing', stats.syncing);
-        this.updateElement('sync-synced', stats.synced);
-        this.updateElement('sync-failed', stats.failed);
-        this.updateElement('error-count', metrics.errorCount);
-
-        // 최근 이벤트
-        this.updateEventList(metrics.recentEvents);
-    }
-
-    updateElement(id, value) {
-        const el = document.getElementById(id);
-        if (el) {
-            el.textContent = value;
-        }
-    }
-
-    updateEventList(events) {
-        const eventList = document.getElementById('event-list');
-        if (!eventList) return;
-
-        eventList.innerHTML = events
-            .slice()
-            .reverse()
-            .slice(0, 10)
-            .map(event => {
-                const time = new Date(event.timestamp).toLocaleTimeString();
-                const icon = {
-                    network: '🌐',
-                    sync: '🔄',
-                    error: '❌'
-                }[event.type] || 'ℹ️';
-
-                return `
-                    <div class="event-item" style="padding: 4px; border-bottom: 1px solid #eee;">
-                        ${icon} [${time}] ${event.type}: ${JSON.stringify(event.data)}
-                    </div>
-                `;
-            })
-            .join('');
-    }
-
-    /**
-     * 대시보드 닫기
-     */
-    destroy() {
-        if (this.updateInterval) {
-            clearInterval(this.updateInterval);
-        }
-        if (this.container) {
-            this.container.remove();
-        }
-    }
-}
-
-export const monitoringDashboard = new MonitoringDashboard();
-```
-
-##### 통합 사용법
-
-```javascript
-// app.js (앱 초기화 시)
-import { monitoringService } from './services/monitoring-service.js';
-import { monitoringDashboard } from './ui/monitoring-dashboard.js';
-import { networkMonitor } from './utils/network-monitor.js';
-
-// 개발 모드에서만 모니터링 대시보드 활성화
-if (process.env.NODE_ENV === 'development') {
-    monitoringDashboard.init();
-}
-
-// 네트워크 상태 변경 감지 및 기록
-networkMonitor.subscribe((isOnline) => {
-    monitoringService.logNetworkChange(isOnline);
-    monitoringDashboard.update();
-});
-
-// 동기화 이벤트 기록
-// offlineMemoService에서 동기화 시작/성공/실패 시 호출
-monitoringService.logSyncEvent(localId, 'start');
-monitoringService.logSyncEvent(localId, 'success');
-monitoringService.logSyncEvent(localId, 'failed', error);
-```
-
----
-
-#### 모니터링 방법 3: 브라우저 확장 프로그램 (선택사항)
+#### 모니터링 방법 2: 브라우저 확장 프로그램 (선택사항)
 
 **추천 확장 프로그램 (무료):**
 
@@ -2382,7 +1940,7 @@ monitoringService.logSyncEvent(localId, 'failed', error);
 - ⚠️ 특정 프레임워크에 종속
 - ⚠️ 순수 JavaScript 프로젝트에는 부적합
 
-**결론**: 순수 JavaScript 프로젝트이므로 브라우저 확장 프로그램보다는 **DevTools나 자체 대시보드**가 더 적합합니다.
+**결론**: 순수 JavaScript 프로젝트이므로 브라우저 확장 프로그램보다는 **브라우저 DevTools**가 더 적합합니다.
 
 ---
 

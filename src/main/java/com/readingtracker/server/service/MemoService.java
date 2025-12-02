@@ -78,6 +78,9 @@ public class MemoService {
      */
     public Memo updateMemo(User user, Long memoId, Memo memo) {
         // 1. 메모 조회 및 소유권 확인
+        if (memoId == null) {
+            throw new IllegalArgumentException("메모 ID는 필수입니다.");
+        }
         Memo existingMemo = memoRepository.findById(memoId)
             .orElseThrow(() -> new IllegalArgumentException("메모를 찾을 수 없습니다."));
         
@@ -98,6 +101,9 @@ public class MemoService {
      */
     @Transactional(readOnly = true)
     public Memo getMemoById(User user, Long memoId) {
+        if (memoId == null) {
+            throw new IllegalArgumentException("메모 ID는 필수입니다.");
+        }
         Memo memo = memoRepository.findById(memoId)
             .orElseThrow(() -> new IllegalArgumentException("메모를 찾을 수 없습니다."));
         
@@ -112,6 +118,9 @@ public class MemoService {
      * 메모 삭제
      */
     public void deleteMemo(User user, Long memoId) {
+        if (memoId == null) {
+            throw new IllegalArgumentException("메모 ID는 필수입니다.");
+        }
         Memo memo = memoRepository.findById(memoId)
             .orElseThrow(() -> new IllegalArgumentException("메모를 찾을 수 없습니다."));
         
@@ -362,6 +371,9 @@ public class MemoService {
      */
     @Transactional(readOnly = true)
     public List<Memo> getBookMemosByDate(User user, Long userBookId, LocalDate date) {
+        if (userBookId == null) {
+            throw new IllegalArgumentException("책 ID는 필수입니다.");
+        }
         UserShelfBook userShelfBook = userShelfBookRepository.findById(userBookId)
             .orElseThrow(() -> new IllegalArgumentException("책을 찾을 수 없습니다."));
         
@@ -393,6 +405,9 @@ public class MemoService {
      */
     @Transactional(readOnly = true)
     public List<Memo> getAllBookMemos(User user, Long userBookId) {
+        if (userBookId == null) {
+            throw new IllegalArgumentException("책 ID는 필수입니다.");
+        }
         UserShelfBook userShelfBook = userShelfBookRepository.findById(userBookId)
             .orElseThrow(() -> new IllegalArgumentException("책을 찾을 수 없습니다."));
         
@@ -483,6 +498,9 @@ public class MemoService {
      * 참고: 노션 문서 (https://www.notion.so/29d4a8c85009803aa90df9f6bdbf3568)
      */
     public void closeBook(User user, Long userBookId, com.readingtracker.server.dto.requestDTO.CloseBookRequest request) {
+        if (userBookId == null) {
+            throw new IllegalArgumentException("책 ID는 필수입니다.");
+        }
         UserShelfBook userShelfBook = userShelfBookRepository.findById(userBookId)
             .orElseThrow(() -> new IllegalArgumentException("책을 찾을 수 없습니다."));
         

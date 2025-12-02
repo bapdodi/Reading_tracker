@@ -74,7 +74,11 @@ public class MemoController extends BaseV1Controller {
         User user = getCurrentUser();
         
         // UserShelfBook 조회 (Mapper에서 처리하기 어려우므로 Controller에서 조회)
-        UserShelfBook userShelfBook = userShelfBookRepository.findById(request.getUserBookId())
+        Long userBookId = request.getUserBookId();
+        if (userBookId == null) {
+            throw new IllegalArgumentException("책 ID는 필수입니다.");
+        }
+        UserShelfBook userShelfBook = userShelfBookRepository.findById(userBookId)
             .orElseThrow(() -> new IllegalArgumentException("책을 찾을 수 없습니다."));
         
         // Mapper를 통한 RequestDTO → Entity 변환 (ARCHITECTURE 원칙 준수)

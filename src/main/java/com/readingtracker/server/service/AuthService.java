@@ -217,7 +217,11 @@ public class AuthService {
             .orElseThrow(() -> new IllegalArgumentException("유효하지 않거나 만료된 토큰입니다."));
         
         // 2. 토큰으로 사용자 조회
-        User user = userRepository.findById(tokenEntity.getUserId())
+        Long userId = tokenEntity.getUserId();
+        if (userId == null) {
+            throw new IllegalArgumentException("토큰에 사용자 ID가 없습니다.");
+        }
+        User user = userRepository.findById(userId)
             .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         
         // 3. 사용자 상태 확인 (ACTIVE만 허용)

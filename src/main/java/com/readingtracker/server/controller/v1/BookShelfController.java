@@ -1,33 +1,34 @@
 package com.readingtracker.server.controller.v1;
 
-import com.readingtracker.server.common.constant.BookCategory;
-import com.readingtracker.server.common.constant.BookSortCriteria;
-import com.readingtracker.server.dto.ApiResponse;
-import com.readingtracker.server.dto.requestDTO.BookAdditionRequest;
-import com.readingtracker.server.dto.responseDTO.BookAdditionResponse;
-import com.readingtracker.server.dto.requestDTO.StartReadingRequest;
-import com.readingtracker.server.dto.requestDTO.BookDetailUpdateRequest;
-import com.readingtracker.server.dto.responseDTO.MyShelfResponse;
-import com.readingtracker.server.dto.requestDTO.FinishReadingRequest;
-import com.readingtracker.dbms.entity.Book;
-import com.readingtracker.dbms.entity.User;
-import com.readingtracker.dbms.entity.UserShelfBook;
-import com.readingtracker.dbms.repository.UserRepository;
-import com.readingtracker.dbms.repository.UserShelfBookRepository;
-import com.readingtracker.server.mapper.BookMapper;
-import com.readingtracker.server.service.BookService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
+
+import jakarta.validation.Valid;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
-import java.util.List;
+import com.readingtracker.dbms.entity.User;
+import com.readingtracker.dbms.entity.UserShelfBook;
+import com.readingtracker.dbms.repository.UserRepository;
+import com.readingtracker.dbms.repository.UserShelfBookRepository;
+import com.readingtracker.server.common.constant.BookCategory;
+import com.readingtracker.server.common.constant.BookSortCriteria;
+import com.readingtracker.server.dto.ApiResponse;
+import com.readingtracker.server.dto.requestDTO.BookAdditionRequest;
+import com.readingtracker.server.dto.requestDTO.BookDetailUpdateRequest;
+import com.readingtracker.server.dto.requestDTO.FinishReadingRequest;
+import com.readingtracker.server.dto.requestDTO.StartReadingRequest;
+import com.readingtracker.server.dto.responseDTO.BookAdditionResponse;
+import com.readingtracker.server.dto.responseDTO.MyShelfResponse;
+import com.readingtracker.server.mapper.BookMapper;
+import com.readingtracker.server.service.BookService;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -68,12 +69,13 @@ public class BookShelfController extends BaseV1Controller {
         User user = userRepository.findActiveUserByLoginId(loginId)
             .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         
-        // Mapper를 통해 RequestDTO → Entity 변환
-        Book book = bookMapper.toBookEntity(request);
-        UserShelfBook userShelfBook = bookMapper.toUserShelfBookEntity(request, user);
+        // Mapper를 통해 RequestDTO → Entity 변환 (문서: MAPSTRUCT_ARCHITECTURE_DESIGN.md 준수)
+        UserShelfBook userShelfBook = bookMapper.toUserShelfBookEntity(request);
+        // Controller에서 User 설정 (문서 요구사항)
+        userShelfBook.setUser(user);
         
         // Service 호출 (Entity만 전달)
-        UserShelfBook savedUserBook = bookService.addBookToShelf(book, userShelfBook);
+        UserShelfBook savedUserBook = bookService.addBookToShelf(userShelfBook);
         
         // Mapper를 통해 Entity → ResponseDTO 변환
         BookAdditionResponse response = bookMapper.toBookAdditionResponse(savedUserBook);
@@ -137,6 +139,9 @@ public class BookShelfController extends BaseV1Controller {
             .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         
         // UserShelfBook 조회 및 소유권 확인
+        if (userBookId == null) {
+            throw new IllegalArgumentException("책 ID는 필수입니다.");
+        }
         UserShelfBook userBook = userShelfBookRepository.findById(userBookId)
             .orElseThrow(() -> new IllegalArgumentException("책을 찾을 수 없습니다."));
         
@@ -175,6 +180,9 @@ public class BookShelfController extends BaseV1Controller {
             .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         
         // UserShelfBook 조회 및 소유권 확인
+        if (userBookId == null) {
+            throw new IllegalArgumentException("책 ID는 필수입니다.");
+        }
         UserShelfBook userBook = userShelfBookRepository.findById(userBookId)
             .orElseThrow(() -> new IllegalArgumentException("책을 찾을 수 없습니다."));
         
@@ -211,6 +219,9 @@ public class BookShelfController extends BaseV1Controller {
             .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         
         // UserShelfBook 조회 및 소유권 확인
+        if (userBookId == null) {
+            throw new IllegalArgumentException("책 ID는 필수입니다.");
+        }
         UserShelfBook userBook = userShelfBookRepository.findById(userBookId)
             .orElseThrow(() -> new IllegalArgumentException("책을 찾을 수 없습니다."));
         
@@ -250,6 +261,9 @@ public class BookShelfController extends BaseV1Controller {
             .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         
         // UserShelfBook 조회 및 소유권 확인
+        if (userBookId == null) {
+            throw new IllegalArgumentException("책 ID는 필수입니다.");
+        }
         UserShelfBook userBook = userShelfBookRepository.findById(userBookId)
             .orElseThrow(() -> new IllegalArgumentException("책을 찾을 수 없습니다."));
         
@@ -291,6 +305,9 @@ public class BookShelfController extends BaseV1Controller {
             .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         
         // UserShelfBook 조회 및 소유권 확인
+        if (userBookId == null) {
+            throw new IllegalArgumentException("책 ID는 필수입니다.");
+        }
         UserShelfBook userBook = userShelfBookRepository.findById(userBookId)
             .orElseThrow(() -> new IllegalArgumentException("책을 찾을 수 없습니다."));
         

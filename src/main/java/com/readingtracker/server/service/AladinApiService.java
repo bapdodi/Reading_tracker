@@ -172,7 +172,6 @@ public class AladinApiService {
         if (item.containsKey("subInfo")) {
             Object subInfoObj = item.get("subInfo");
             if (subInfoObj instanceof Map) {
-                @SuppressWarnings("unchecked")
                 Map<String, Object> subInfo = (Map<String, Object>) subInfoObj;
                 itemDto.setSubInfo(subInfo);
             }

@@ -87,6 +87,9 @@ public class UserService {
      * @return 사용자 엔티티 (없으면 null)
      */
     public User findById(Long id) {
+        if (id == null) {
+            return null;
+        }
         return userRepository.findById(id).orElse(null);
     }
 }

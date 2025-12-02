@@ -27,11 +27,16 @@ public class BookService {
     
     /**
      * 내 서재에 책 추가
-     * Book과 UserShelfBook Entity를 받아서 처리
+     * 문서: MAPSTRUCT_ARCHITECTURE_DESIGN.md 준수 - Entity만 받음
      */
-    public UserShelfBook addBookToShelf(Book book, UserShelfBook userShelfBook) {
+    public UserShelfBook addBookToShelf(UserShelfBook userShelfBook) {
         // 1. ISBN으로 Book 테이블에 이미 존재하는지 확인
         // books 테이블에 ISBN이 존재하면 해당 Book을 재사용하고, 없으면 새로 생성
+        Book book = userShelfBook.getBook();
+        if (book == null) {
+            throw new IllegalArgumentException("Book 정보가 없습니다.");
+        }
+        
         Book savedBook;
         if (book.getId() != null) {
             // 이미 ID가 있는 경우 (기존 Book)
