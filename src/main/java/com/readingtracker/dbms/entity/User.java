@@ -5,6 +5,8 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import com.sharedsync.shared.presence.annotation.PresenceUser;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,6 +14,10 @@ import java.util.List;
 @Entity
 @Table(name = "Users")
 @EntityListeners(AuditingEntityListener.class)
+@PresenceUser(
+    idField = "id",
+    nameField = "name"
+)
 public class User {
     
     @Id

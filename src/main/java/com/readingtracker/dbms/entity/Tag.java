@@ -1,14 +1,21 @@
 package com.readingtracker.dbms.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import com.sharedsync.shared.annotation.CacheEntity;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-
+@CacheEntity
+@Builder
+@AllArgsConstructor
 @Entity
 @Table(name = "tags")
 @EntityListeners(AuditingEntityListener.class)

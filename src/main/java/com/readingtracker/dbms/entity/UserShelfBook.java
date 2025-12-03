@@ -1,18 +1,26 @@
 package com.readingtracker.dbms.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import com.readingtracker.server.common.constant.BookCategory;
 import com.readingtracker.server.common.constant.PurchaseType;
+import com.sharedsync.shared.annotation.CacheEntity;
+import com.sharedsync.shared.presence.annotation.PresenceRoot;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-
+@CacheEntity
+@Builder
+@AllArgsConstructor
 @Entity
 @Table(name = "User_Books")
+@PresenceRoot(channel = "userShelfBook-presence", idField = "userShelfBookId")
 @EntityListeners(AuditingEntityListener.class)
 public class UserShelfBook {
     
