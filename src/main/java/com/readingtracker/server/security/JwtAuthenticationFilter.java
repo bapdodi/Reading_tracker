@@ -1,10 +1,8 @@
 package com.readingtracker.server.security;
 
-import com.readingtracker.server.common.util.JwtUtil;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.Collections;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -14,8 +12,12 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import java.io.IOException;
-import java.util.Collections;
+import com.readingtracker.server.common.util.JwtUtil;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * JWT 인증 필터
@@ -91,6 +93,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return bearerToken.substring(7);  // "Bearer " 이후 부분
         }
         
+        // 허용: query parameter `token` (예: /info?token=...)
+        try {
+            String tokenParam = request.getParameter("token");
+            if (tokenParam != null && !tokenParam.isBlank()) {
+                return tokenParam.trim();
+            }
+
+            // 혹시 쿼리에 Authorization=Bearer%20... 형태로 올 경우도 처리
+            String authParam = request.getParameter("Authorization");
+            if (authParam != null && authParam.startsWith("Bearer ")) {
+                return authParam.substring(7).trim();
+            }
+        } catch (Exception e) {
+            // 안전하게 무시하고 null 반환
+        }
+
         return null;
     }
     

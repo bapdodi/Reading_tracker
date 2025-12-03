@@ -1,6 +1,7 @@
 package com.readingtracker.server.common.util;
 
 import com.readingtracker.server.config.JwtConfig;
+import com.sharedsync.shared.auth.AuthenticationTokenResolver;
 import com.readingtracker.dbms.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -17,7 +18,7 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
-public class JwtUtil {
+public class JwtUtil implements AuthenticationTokenResolver{
     
     private final JwtConfig jwtConfig;
     
@@ -102,6 +103,16 @@ public class JwtUtil {
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
+    }
+
+    @Override
+    public String extractPrincipalId(String arg0) {
+        return String.valueOf(extractUserId(arg0));
+    }
+
+    @Override
+    public boolean validate(String arg0) {
+        return !isTokenExpired(arg0);
     }
 }
 
