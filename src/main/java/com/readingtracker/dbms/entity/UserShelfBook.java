@@ -13,6 +13,7 @@ import com.readingtracker.server.common.constant.PurchaseType;
 import com.sharedsync.shared.annotation.CacheEntity;
 import com.sharedsync.shared.presence.annotation.PresenceRoot;
 
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 @CacheEntity
@@ -20,8 +21,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Entity
 @Table(name = "User_Books")
-@PresenceRoot(channel = "userShelfBook-presence", idField = "userShelfBookId")
 @EntityListeners(AuditingEntityListener.class)
+@PresenceRoot(channel = "UserShelfBook-presence", idField = "id")
 public class UserShelfBook {
     
     @Id

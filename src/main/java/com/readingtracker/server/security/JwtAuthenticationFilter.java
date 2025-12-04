@@ -1,10 +1,8 @@
 package com.readingtracker.server.security;
 
-import com.readingtracker.server.common.util.JwtUtil;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.Collections;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -14,8 +12,12 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import java.io.IOException;
-import java.util.Collections;
+import com.readingtracker.server.common.util.JwtUtil;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * JWT 인증 필터
@@ -90,7 +92,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);  // "Bearer " 이후 부분
         }
+
+        // 브라우저의 WebSocket/SockJS 연결 시에는 Authorization 헤더를 전달하지 못하는 경우가 있음.
+        // 따라서 쿼리 파라미터로 전달된 토큰도 허용하도록 한다. (예: /ws-sharedsync/info?token=...)
+
+        String p = request.getParameter("token");
+        if (p != null && !p.isBlank()) {
+            p = p.trim();
+            if (p.startsWith("Bearer ")) {
+                p = p.substring(7).trim();
+            }
+            return p;
+        }
         
+
+        // 일부 구현에서는 짧은 타임스탬프나 다른 파라미터명(`t`)을 함께 보냄 — 확인용
         return null;
     }
     
