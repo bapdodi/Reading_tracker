@@ -1,21 +1,5 @@
 package com.readingtracker.server.service;
 
-import com.readingtracker.dbms.entity.Memo;
-import com.readingtracker.dbms.entity.Tag;
-import com.readingtracker.dbms.entity.TagCategory;
-import com.readingtracker.dbms.entity.User;
-import com.readingtracker.dbms.entity.UserShelfBook;
-import com.readingtracker.dbms.repository.MemoRepository;
-import com.readingtracker.dbms.repository.UserShelfBookRepository;
-import com.readingtracker.server.common.constant.BookCategory;
-import com.readingtracker.server.dto.responseDTO.BookMemoGroup;
-import com.readingtracker.server.dto.responseDTO.MemoResponse;
-import com.readingtracker.server.dto.responseDTO.TagMemoGroup;
-import com.readingtracker.server.mapper.MemoMapper;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -26,6 +10,27 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.readingtracker.dbms.entity.Memo;
+import com.readingtracker.dbms.entity.Tag;
+import com.readingtracker.dbms.entity.TagCategory;
+import com.readingtracker.dbms.entity.User;
+import com.readingtracker.dbms.entity.UserShelfBook;
+import com.readingtracker.dbms.repository.BookRepository;
+import com.readingtracker.dbms.repository.MemoRepository;
+import com.readingtracker.dbms.repository.UserShelfBookRepository;
+import com.readingtracker.server.common.constant.BookCategory;
+import com.readingtracker.server.dto.responseDTO.BookMemoGroup;
+import com.readingtracker.server.dto.responseDTO.MemoResponse;
+import com.readingtracker.server.dto.responseDTO.TagMemoGroup;
+import com.readingtracker.server.mapper.MemoMapper;
+
+import sharedsync.cache.MemoCache;
+import sharedsync.cache.UserShelfBookCache;
 
 @Service
 @Transactional
@@ -39,6 +44,13 @@ public class MemoService {
     
     @Autowired
     private UserShelfBookRepository userShelfBookRepository;
+
+    @Autowired
+    private MemoCache memoCache;
+    @Autowired
+    private UserShelfBookCache userShelfBookCache;
+    @Autowired
+    private BookRepository bookRepository;
     
     /**
      * 메모 작성
@@ -176,9 +188,24 @@ public class MemoService {
     @Transactional(readOnly = true)
     public Map<Long, BookMemoGroup> getTodayFlowGroupedByBook(User user, LocalDate date) {
         LocalDateTime[] dateRange = calculateDateRange(date);
-        List<Memo> memos = memoRepository.findByUserIdAndDateOrderByBookAndMemoStartTimeAsc(
-            user.getId(), dateRange[0], dateRange[1]
-        );
+        
+        // 캐시에서 데이터를 조회
+        List<UserShelfBook> userShelfBooks = userShelfBookCache.findByParentId(user.getId());
+        List<Memo> memos = new ArrayList<>();
+        for (UserShelfBook userShelfBook : userShelfBooks) {
+            List<Memo> memoTemps = memoCache.findByParentId(userShelfBook.getId());
+            memoTemps = memoTemps.stream()
+                    .filter(m -> {
+                        LocalDateTime memoTime = m.getMemoStartTime();
+                        return !memoTime.isBefore(dateRange[0]) && memoTime.isBefore(dateRange[1]);
+                    })
+                    .peek(m -> m.setUserShelfBook(userShelfBook))
+                    .collect(Collectors.toList());
+            memos.addAll(memoTemps);
+        }
+        
+        // 시간순 정렬 (책별 그룹화 후 내부 정렬을 위해)
+        memos.sort(Comparator.comparing(Memo::getMemoStartTime));
         
         // null 체크: userShelfBook이 null인 메모는 필터링
         memos = memos.stream()
@@ -247,9 +274,29 @@ public class MemoService {
     public Map<String, TagMemoGroup> getTodayFlowGroupedByTag(User user, LocalDate date, TagCategory tagCategory) {
         // 날짜 기준으로 모든 메모를 시간순으로 조회
         LocalDateTime[] dateRange = calculateDateRange(date);
-        List<Memo> memos = memoRepository.findByUserIdAndDateOrderByMemoStartTimeAsc(
-            user.getId(), dateRange[0], dateRange[1]
-        );
+
+        // 캐시에서 데이터를 조회
+        List<UserShelfBook> userShelfBooks = userShelfBookCache.findByParentId(user.getId());
+        List<Memo> memos = new ArrayList<>();
+        for (UserShelfBook userShelfBook : userShelfBooks) {
+            List<Memo> memoTemps = memoCache.findByParentId(userShelfBook.getId());
+            memoTemps = memoTemps.stream()
+                    .filter(m -> {
+                        LocalDateTime memoTime = m.getMemoStartTime();
+                        return !memoTime.isBefore(dateRange[0]) && memoTime.isBefore(dateRange[1]);
+                    })
+                    .peek(m -> m.setUserShelfBook(userShelfBook)) // 캐시에서 가져온 Memo에 userShelfBook 설정
+                    .collect(Collectors.toList());
+            memos.addAll(memoTemps);
+        }
+
+        // List<Memo> memos = memoRepository.findByUserIdAndDateOrderByMemoStartTimeAsc(
+        //     user.getId(), dateRange[0], dateRange[1]
+        // );
+        
+        
+
+
         
         // 대표 태그 결정 헬퍼 메서드
         // tagCategory에 따라 우선순위가 변경됨:
