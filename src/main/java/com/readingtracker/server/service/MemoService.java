@@ -30,7 +30,6 @@ import com.readingtracker.server.dto.responseDTO.TagMemoGroup;
 import com.readingtracker.server.mapper.MemoMapper;
 
 import sharedsync.cache.MemoCache;
-import sharedsync.cache.UserShelfBookCache;
 
 @Service
 @Transactional
@@ -47,8 +46,7 @@ public class MemoService {
 
     @Autowired
     private MemoCache memoCache;
-    @Autowired
-    private UserShelfBookCache userShelfBookCache;
+
     @Autowired
     private BookRepository bookRepository;
     
@@ -190,19 +188,15 @@ public class MemoService {
         LocalDateTime[] dateRange = calculateDateRange(date);
         
         // 캐시에서 데이터를 조회
-        List<UserShelfBook> userShelfBooks = userShelfBookCache.findByParentId(user.getId());
+        List<Memo> memoTemps = memoCache.findEntitiesByField("cacheUserId", user.getId());
         List<Memo> memos = new ArrayList<>();
-        for (UserShelfBook userShelfBook : userShelfBooks) {
-            List<Memo> memoTemps = memoCache.findByParentId(userShelfBook.getId());
-            memoTemps = memoTemps.stream()
-                    .filter(m -> {
-                        LocalDateTime memoTime = m.getMemoStartTime();
-                        return !memoTime.isBefore(dateRange[0]) && memoTime.isBefore(dateRange[1]);
-                    })
-                    .peek(m -> m.setUserShelfBook(userShelfBook))
-                    .collect(Collectors.toList());
-            memos.addAll(memoTemps);
-        }
+        memoTemps = memoTemps.stream()
+            .filter(m -> {
+                LocalDateTime memoTime = m.getMemoStartTime();
+                return !memoTime.isBefore(dateRange[0]) && memoTime.isBefore(dateRange[1]);
+            })
+            .collect(Collectors.toList());
+        memos.addAll(memoTemps);
         
         // 시간순 정렬 (책별 그룹화 후 내부 정렬을 위해)
         memos.sort(Comparator.comparing(Memo::getMemoStartTime));
@@ -276,19 +270,16 @@ public class MemoService {
         LocalDateTime[] dateRange = calculateDateRange(date);
 
         // 캐시에서 데이터를 조회
-        List<UserShelfBook> userShelfBooks = userShelfBookCache.findByParentId(user.getId());
+        List<Memo> memoTemps = memoCache.findEntitiesByField("cacheUserId", user.getId());
         List<Memo> memos = new ArrayList<>();
-        for (UserShelfBook userShelfBook : userShelfBooks) {
-            List<Memo> memoTemps = memoCache.findByParentId(userShelfBook.getId());
-            memoTemps = memoTemps.stream()
-                    .filter(m -> {
-                        LocalDateTime memoTime = m.getMemoStartTime();
-                        return !memoTime.isBefore(dateRange[0]) && memoTime.isBefore(dateRange[1]);
-                    })
-                    .peek(m -> m.setUserShelfBook(userShelfBook)) // 캐시에서 가져온 Memo에 userShelfBook 설정
-                    .collect(Collectors.toList());
-            memos.addAll(memoTemps);
-        }
+        memoTemps = memoTemps.stream()
+            .filter(m -> {
+                LocalDateTime memoTime = m.getMemoStartTime();
+                return !memoTime.isBefore(dateRange[0]) && memoTime.isBefore(dateRange[1]);
+            })
+            .collect(Collectors.toList());
+        memos.addAll(memoTemps);
+        
 
         // List<Memo> memos = memoRepository.findByUserIdAndDateOrderByMemoStartTimeAsc(
         //     user.getId(), dateRange[0], dateRange[1]
