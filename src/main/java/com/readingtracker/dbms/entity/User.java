@@ -15,8 +15,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 @CacheEntity
-@Builder
-@AllArgsConstructor
 @Entity
 @Table(name = "Users")
 @EntityListeners(AuditingEntityListener.class)

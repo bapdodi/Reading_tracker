@@ -37,6 +37,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/books/search").permitAll()
                 // 도서 세부 정보 검색 API는 인증 없이 접근 가능
                 .requestMatchers("/api/v1/books/**").permitAll()
+                // WebSocket SockJS 엔드포인트 접근 가능
+                .requestMatchers("/ws-sharedsync/**", "/ws-sharedsync/info/**").permitAll()
                 // Swagger UI 접근 허용
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
                 // 기타 모든 요청은 인증 필요

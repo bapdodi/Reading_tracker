@@ -118,7 +118,7 @@
         <dependency>
             <groupId>com.github.cow-planmate.sharedsync</groupId>
             <artifactId>sharedsync-starter</artifactId>
-            <version>main-SNAPSHOT</version>
+            <version>4e11e0ca4d</version>
         </dependency>
         
         <!-- Test -->
@@ -174,7 +174,7 @@
                         <path>
                             <groupId>com.github.cow-planmate.sharedsync</groupId>
                             <artifactId>sharedsync-autoconfigure</artifactId>
-                            <version>main-SNAPSHOT</version>
+                            <version>4e11e0ca4d</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>

@@ -16,8 +16,6 @@ import com.sharedsync.shared.presence.annotation.PresenceRoot;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 @CacheEntity
-@Builder
-@AllArgsConstructor
 @Entity
 @Table(name = "User_Books")
 @PresenceRoot(channel = "userShelfBook-presence", idField = "userShelfBookId")
