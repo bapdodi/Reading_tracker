@@ -1,13 +1,14 @@
 package com.readingtracker.dbms.repository;
 
-import com.readingtracker.dbms.entity.Memo;
+import java.sql.Date;
+import java.time.LocalDateTime;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
+import com.readingtracker.dbms.entity.Memo;
 
 public interface MemoRepository extends JpaRepository<Memo, Long> {
     
@@ -134,7 +135,7 @@ public interface MemoRepository extends JpaRepository<Memo, Long> {
            "AND YEAR(m.memoStartTime) = :year " +
            "AND MONTH(m.memoStartTime) = :month " +
            "ORDER BY CAST(m.memoStartTime AS date) ASC")
-    List<LocalDate> findDistinctDatesByUserIdAndYearAndMonth(
+       List<Date> findDistinctDatesByUserIdAndYearAndMonth(
         @Param("userId") Long userId,
         @Param("year") int year,
         @Param("month") int month

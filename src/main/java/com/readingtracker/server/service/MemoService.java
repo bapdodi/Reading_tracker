@@ -1,5 +1,6 @@
 package com.readingtracker.server.service;
 
+import java.sql.Date;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -640,11 +641,11 @@ public class MemoService {
      * @return 날짜 문자열 리스트 (예: ["2024-01-15", "2024-01-20"])
      */
     public List<String> getMemoDates(User user, int year, int month) {
-        List<LocalDate> dates = memoRepository.findDistinctDatesByUserIdAndYearAndMonth(
+        List<Date> sqlDates = memoRepository.findDistinctDatesByUserIdAndYearAndMonth(
             user.getId(), year, month
         );
-        return dates.stream()
-            .map(LocalDate::toString)  // ISO 8601 형식으로 변환
+        return sqlDates.stream()
+            .map(d -> d.toLocalDate().toString())  // convert java.sql.Date -> LocalDate -> ISO string
             .collect(Collectors.toList());
     }
 }
