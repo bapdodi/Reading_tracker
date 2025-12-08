@@ -4,11 +4,18 @@ import jakarta.persistence.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import org.springframework.security.access.prepost.PreFilter;
+
+import com.sharedsync.shared.annotation.CacheEntity;
+import com.sharedsync.shared.presence.annotation.PresenceRoot;
+import com.sharedsync.shared.presence.annotation.PresenceUser;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-
+@CacheEntity
+@PresenceRoot(channel = "user-presence", idField = "id")
+@PresenceUser(idField = "id", nameField = "name")
 @Entity
 @Table(name = "Users")
 @EntityListeners(AuditingEntityListener.class)
